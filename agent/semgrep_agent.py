@@ -1,4 +1,4 @@
-"""Sample agent implementation"""
+"""Semgrep agent implementation"""
 import logging
 from rich import logging as rich_logging
 
@@ -16,28 +16,27 @@ logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 
-class HellWorldAgent(agent.Agent):
-    """Hello world agent."""
+class SemgrepAgent(agent.Agent):
+    """Semgrep agent."""
 
     def start(self) -> None:
         """TODO (author): add your description here."""
         logger.info("running start")
 
     def process(self, message: m.Message) -> None:
-        """TODO (author): add your description here.
+        """Process the source file
 
         Args:
-            message:
-
-        Returns:
+            message: A message containing the file to be processed.
+             The message should contain the file content and path.
 
         """
-        # TODO (author): implement agent logic here.
-        del message
-        logger.info("processing message")
-        self.emit("v3.healthcheck.ping", {"body": "Hello World!"})
+
+        content = message.data.get("content")
+
+
 
 
 if __name__ == "__main__":
     logger.info("starting agent ...")
-    HellWorldAgent.main()
+    SemgrepAgent.main()

@@ -1,9 +1,59 @@
 kind: Agent
-name: template_agent # Agent name, must be unique by organisation to be published on the store.
-version: 0.0.0 # Must respect semantic versioning.
-description: Agent description. # Support for Markdown format.
-in_selectors: # List of input selectors, this is basically the list of messages the agent should receive.
-  - v3.healthcheck.ping
-out_selectors: [] # List of output selectors.
-docker_file_path : Dockerfile # Dockerfile path for automated releases.
-docker_build_root : . # Docker build dir for automated release build.
+name: agent_semgrep # Agent name, must be unique by organisation to be published on the store.
+version: 0.0.1 # Must respect semantic versioning.
+image: images/logo.png
+description: |
+  This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for the [Semgrep](https://github.com/returntocorp/semgrep) by r2c.
+  ## Getting Started
+  To perform your first scan, simply run the following command:
+  ```shell
+  ostorlab scan run --install --agent agent/ostorlab/semgrep file code.java
+  ```
+  This command will download and install `agent/ostorlab/semgrep` and analyze the file `code.java`.
+  For more information, please refer to the [Ostorlab Documentation](https://github.com/Ostorlab/ostorlab/blob/main/README.md)
+  ## Usage
+  Agent Semgrep can be installed directly from the ostorlab agent store or built from this repository.
+  
+  Supported agent flags:
+  
+  * TODO
+  
+   ### Install directly from ostorlab agent store
+   ```shell
+   ostorlab agent install agent/ostorlab/semgrep
+   ```
+  You can then run the agent with the following command:
+  ```shell
+  ostorlab scan run --install --agent agent/ostorlab/semgrep file code.java
+  ```
+  ### Build directly from the repository
+   1. To build the semgrep agent you need to have [ostorlab](https://pypi.org/project/ostorlab/) installed in your machine.  if you have already installed ostorlab, you can skip this step.
+  ```shell
+  pip3 install ostorlab
+  ```
+   2. Clone this repository.
+  ```shell
+  git clone https://github.com/Ostorlab/agent_semgrep.git && cd agent_semgrep
+  ```
+   3. Build the agent image using ostorlab cli.
+   ```shell
+   ostorlab agent build --file=ostorlab.yaml
+   ```
+   You can pass the optional flag `--organization` to specify your organisation. The organization is empty by default.
+   4. Run the agent using on of the following commands:
+     * If you did not specify an organization when building the image:
+      ```shell
+      ostorlab scan run --agent agent//agent_semgrep file code.java
+      ```
+     * If you specified an organization when building the image:
+      ```shell
+      ostorlab scan run --agent agent/[ORGANIZATION]/agent_semgrep file code.java
+      ```
+  ## License
+  [Apache-2](./LICENSE)
+in_selectors:
+  - v3.asset.file
+out_selectors:
+  - v3.report.vulnerability
+docker_file_path : Dockerfile
+docker_build_root : .
