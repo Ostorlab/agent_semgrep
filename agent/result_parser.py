@@ -6,6 +6,13 @@ from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
 
+RISK_RATING_MAPPING = {
+    "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.INFO,
+    "LOW": agent_report_vulnerability_mixin.RiskRating.LOW,
+    "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
+    "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
+}
+
 
 @dataclasses.dataclass
 class Vulnerability:
@@ -117,6 +124,6 @@ def parse_results(json_output: Dict[str, Any]) -> Iterator[Vulnerability]:
                 targeted_by_nation_state=False,
             ),
             technical_detail=technical_detail,
-            risk_rating=impact,
+            risk_rating=RISK_RATING_MAPPING[impact],
             vulnerability_location=vuln_location,
         )
