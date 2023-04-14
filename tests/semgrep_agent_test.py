@@ -1,11 +1,12 @@
 """Unittests for Semgrep agent."""
-from agent import semgrep_agent
-from pytest_mock import plugin
 from typing import List, Dict, Union
+
 from ostorlab.agent.message import message
+from pytest_mock import plugin
 
+from agent import semgrep_agent
 
-output = b'''
+output = b"""
 {
   "errors": [],
   "paths": {
@@ -77,9 +78,9 @@ output = b'''
     }
   ],
   "version": "1.17.1"
-}'''
+}"""
 
-empty_output = b'''
+empty_output = b"""
 {
   "errors": [],
   "paths": {
@@ -90,7 +91,7 @@ empty_output = b'''
   },
   "results": [],
   "version": "1.17.1"
-}'''
+}"""
 
 
 def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
@@ -100,7 +101,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """Unittest for the full life cycle of the agent: 
+    """Unittest for the full life cycle of the agent:
     case where the semgrep analysis runs without errors and yields non empty results.
     """
 
@@ -124,7 +125,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_DoesNotEmitBackVulnerability(
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """Unittest for the full life cycle of the agent: 
+    """Unittest for the full life cycle of the agent:
     case where the semgrep analysis runs without errors and yields empty results.
     """
 

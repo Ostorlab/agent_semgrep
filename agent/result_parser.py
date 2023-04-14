@@ -1,12 +1,10 @@
 """Module to parse semgrep json results."""
 import dataclasses
-import json
 from typing import Dict
 
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
 from ostorlab.assets import file
-
 
 RISK_RATING_MAPPING = {
     "UNKNOWN": vuln_mixin.RiskRating.INFO,
@@ -26,22 +24,24 @@ class Vulnerability:
     vulnerability_location: vuln_mixin.VulnerabilityLocation
 
 
-def construct_technical_detail(title: str, description: str, impact: str, references: Dict[str, str]) -> str:
+def construct_technical_detail(
+    title: str, description: str, impact: str, references: Dict[str, str]
+) -> str:
     """Construct human readable report using vulnerability json
 
     Args:
         title
         description
-        impact 
+        impact
         references
 
     Returns:
         Technical detail of the vulnerability
     """
 
-    references = '\n'.join([reference for reference in references.values()])
+    references = "\n".join([reference for reference in references.values()])
 
-    technical_detail = f'''
+    technical_detail = f"""
 ```
 Vulnerability Report:
 
@@ -57,7 +57,7 @@ References:
 
 {references}
 ```
-'''
+"""
 
     return technical_detail
 
@@ -72,29 +72,31 @@ def parse_results(json_output: Dict):
         Vulnerability entry.
     """
 
-    file_path = json_output.get('path')
+    file_path = json_output.get("path")
 
-    vulnerabilities = json_output.get('results', [])
+    vulnerabilities = json_output.get("results", [])
 
     for vulnerability in vulnerabilities:
+        extra = vulnerability.get("extra", {})
 
-        extra = vulnerability.get('extra', {})
+        description = extra.get("message", "")
 
-        description = extra.get('message', '')
+        title = description.split(".")[0]
 
-        title = description.split('.')[0]
+        metadata = extra.get("metadata", {})
 
-        metadata = extra.get('metadata', {})
+        impact = metadata.get("impact", "UNKNOWN")
 
-        impact = metadata.get('impact', 'UNKNOWN')
-
-        fix = extra.get('fix', '')
+        fix = extra.get("fix", "")
 
         references = {
-            f"source-{idx+1}": value for (idx, value) in enumerate(metadata.get('references', []))}
+            f"source-{idx + 1}": value
+            for (idx, value) in enumerate(metadata.get("references", []))
+        }
 
         technical_detail = construct_technical_detail(
-            title, description, impact, references)
+            title, description, impact, references
+        )
 
         vuln_location = vuln_mixin.VulnerabilityLocation(
             asset=file.File(),

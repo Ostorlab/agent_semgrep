@@ -3,16 +3,15 @@ import json
 import logging
 import os
 import subprocess
+import tempfile
 from typing import Dict
-from rich import logging as rich_logging
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
-from agent import result_parser
-
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
+from rich import logging as rich_logging
 
-import tempfile
+from agent import result_parser
 
 logging.basicConfig(
     format="%(message)s",
@@ -39,14 +38,9 @@ class SemgrepAgent(agent.Agent, vuln_mixin.AgentReportVulnMixin):
             )
 
     def _run_analysis(self, input_file_path: str) -> bytes:
-        command = ['semgrep', '--config', 'auto',
-                   '-q', '--json', input_file_path]
+        command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
         try:
-            output = subprocess.run(
-                command,
-                capture_output=True,
-                check=True
-            )
+            output = subprocess.run(command, capture_output=True, check=True)
         except subprocess.CalledProcessError:
             logger.error("An error occurred while running the command")
             return
@@ -81,14 +75,13 @@ class SemgrepAgent(agent.Agent, vuln_mixin.AgentReportVulnMixin):
             return
 
         with tempfile.NamedTemporaryFile(suffix=file_split[1]) as infile:
-
             infile.write(content)
 
             infile.flush()
 
             json_output = json.loads(self._run_analysis(infile.name))
 
-            json_output['path'] = path
+            json_output["path"] = path
 
             self._emit_results(json_output)
 
