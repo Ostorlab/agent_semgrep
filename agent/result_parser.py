@@ -39,7 +39,7 @@ def construct_technical_detail(
         Technical detail of the vulnerability
     """
 
-    references = "\n".join([reference for reference in references.values()])
+    references = "\n".join(list(references.values()))
 
     technical_detail = f"""
 ```
