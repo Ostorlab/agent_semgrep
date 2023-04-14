@@ -4,11 +4,11 @@ import logging
 import os
 import subprocess
 import tempfile
-from typing import Dict
+from typing import Dict, Any
 
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
-from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from rich import logging as rich_logging
 
 from agent import result_parser
@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 
-class SemgrepAgent(agent.Agent, vuln_mixin.AgentReportVulnMixin):
+class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
     """Semgrep agent."""
 
-    def _emit_results(self, json_output: Dict) -> None:
+    def _emit_results(self, json_output: Dict[str, Any]) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in result_parser.parse_results(json_output):
             self.report_vulnerability(
@@ -37,16 +37,16 @@ class SemgrepAgent(agent.Agent, vuln_mixin.AgentReportVulnMixin):
                 vulnerability_location=vuln.vulnerability_location,
             )
 
-    def _run_analysis(self, input_file_path: str) -> bytes:
+    def _run_analysis(self, input_file_path: str) -> bytes | None:
         command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
         try:
             output = subprocess.run(command, capture_output=True, check=True)
         except subprocess.CalledProcessError:
             logger.error("An error occurred while running the command")
-            return
+            return None
         except subprocess.TimeoutExpired:
             logger.warning("Timeout")
-            return
+            return None
 
         return output.stdout
 
@@ -79,13 +79,16 @@ class SemgrepAgent(agent.Agent, vuln_mixin.AgentReportVulnMixin):
 
             infile.flush()
 
-            json_output = json.loads(self._run_analysis(infile.name))
+            output = self._run_analysis(infile.name)
 
-            json_output["path"] = path
+            if isinstance(output, bytes):
+                json_output = json.loads(output)
 
-            self._emit_results(json_output)
+                json_output["path"] = path
 
-        logger.info("Analysis Done")
+                self._emit_results(json_output)
+
+        logger.info("Analysis completed")
 
 
 if __name__ == "__main__":

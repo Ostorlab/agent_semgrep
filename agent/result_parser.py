@@ -1,17 +1,10 @@
 """Module to parse semgrep json results."""
 import dataclasses
-from typing import Dict
+from typing import Dict, Iterator, Any
 
 from ostorlab.agent.kb import kb
-from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vuln_mixin
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
-
-RISK_RATING_MAPPING = {
-    "UNKNOWN": vuln_mixin.RiskRating.INFO,
-    "LOW": vuln_mixin.RiskRating.LOW,
-    "MEDIUM": vuln_mixin.RiskRating.MEDIUM,
-    "HIGH": vuln_mixin.RiskRating.HIGH,
-}
 
 
 @dataclasses.dataclass
@@ -20,8 +13,8 @@ class Vulnerability:
 
     entry: kb.Entry
     technical_detail: str
-    risk_rating: vuln_mixin.RiskRating
-    vulnerability_location: vuln_mixin.VulnerabilityLocation
+    risk_rating: agent_report_vulnerability_mixin.RiskRating
+    vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
 
 
 def construct_technical_detail(
@@ -39,7 +32,7 @@ def construct_technical_detail(
         Technical detail of the vulnerability
     """
 
-    references = "\n".join(list(references.values()))
+    references_list = "\n".join(list(references.values()))
 
     technical_detail = f"""
 ```
@@ -55,14 +48,14 @@ Description:
 
 References:
 
-{references}
+{references_list}
 ```
 """
 
     return technical_detail
 
 
-def parse_results(json_output: Dict):
+def parse_results(json_output: Dict[str, Any]) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
     Args:
@@ -72,7 +65,7 @@ def parse_results(json_output: Dict):
         Vulnerability entry.
     """
 
-    file_path = json_output.get("path")
+    file_path = json_output.get("path", "")
 
     vulnerabilities = json_output.get("results", [])
 
@@ -98,11 +91,12 @@ def parse_results(json_output: Dict):
             title, description, impact, references
         )
 
-        vuln_location = vuln_mixin.VulnerabilityLocation(
+        vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
             asset=file.File(),
             metadata=[
-                vuln_mixin.VulnerabilityLocationMetadata(
-                    metadata_type=vuln_mixin.MetadataType.FILE_PATH, value=file_path
+                agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
+                    metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
+                    value=file_path,
                 )
             ],
         )
@@ -110,7 +104,7 @@ def parse_results(json_output: Dict):
         yield Vulnerability(
             entry=kb.Entry(
                 title=title,
-                risk_rating=RISK_RATING_MAPPING[impact],
+                risk_rating=impact,
                 short_description=description,
                 description=description,
                 references=references,
@@ -123,6 +117,6 @@ def parse_results(json_output: Dict):
                 targeted_by_nation_state=False,
             ),
             technical_detail=technical_detail,
-            risk_rating=RISK_RATING_MAPPING[impact],
+            risk_rating=impact,
             vulnerability_location=vuln_location,
         )
