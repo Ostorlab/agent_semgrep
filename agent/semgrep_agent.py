@@ -32,7 +32,7 @@ def get_file_type(content: bytes, path: str | None) -> str:
         return str(file_type)
     if path is not None:
         file_split = os.path.splitext(path)
-        if len(file_split) != 2:
+        if len(file_split[1]) < 2:
             return get_file_type(content, None)
         return file_split[1]
 
