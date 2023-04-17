@@ -1,12 +1,13 @@
 """Unittests for Semgrep agent."""
-from typing import List, Dict, Union
+import subprocess
+from typing import Union
 
 from ostorlab.agent.message import message
 from pytest_mock import plugin
 
 from agent import semgrep_agent
 
-output = b"""
+JSON_OUTPUT = b"""
 {
   "errors": [],
   "paths": {
@@ -80,7 +81,7 @@ output = b"""
   "version": "1.17.1"
 }"""
 
-empty_output = b"""
+EMPTY_JSON_OUTPUT = b"""
 {
   "errors": [],
   "paths": {
@@ -96,18 +97,18 @@ empty_output = b"""
 
 def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     test_agent: semgrep_agent.SemgrepAgent,
-    agent_mock: List[message.Message],
-    agent_persist_mock: Dict[Union[str, bytes], Union[str, bytes]],
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without errors and yields non empty results.
+    case where the semgrep analysis runs without errors and yields vulnerabilities.
     """
 
     mocker.patch(
-        "agent.semgrep_agent.SemgrepAgent._run_analysis",
-        return_value=output,
+        "agent.semgrep_agent.run_analysis",
+        return_value=JSON_OUTPUT,
     )
 
     test_agent.process(scan_message_file)
@@ -118,20 +119,61 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     assert len(agent_mock[0].data["references"]) >= 3
 
 
-def testAgentSemgrep_whenAnalysisRunsWithoutErrors_DoesNotEmitBackVulnerability(
+def testAgentSemgrep_whenAnalysisRunsWithoutErrors_doesNotEmitBackVulnerability(
     test_agent: semgrep_agent.SemgrepAgent,
-    agent_mock: List[message.Message],
-    agent_persist_mock: Dict[Union[str, bytes], Union[str, bytes]],
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without errors and yields empty results.
+    case where the semgrep analysis runs without errors and does not yield vulnerabilities.
     """
 
     mocker.patch(
-        "agent.semgrep_agent.SemgrepAgent._run_analysis",
-        return_value=empty_output,
+        "agent.semgrep_agent.run_analysis",
+        return_value=EMPTY_JSON_OUTPUT,
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
+
+
+def testAgentSemgrep_whenAnalysisRunsWithTimeout_doesNotEmitBackVulnerability(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the process execution:
+    case where the process runs with timeout.
+    """
+
+    mocker.patch(
+        "subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="", timeout=30)
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) == 0
+
+
+def testAgentSemgrep_whenAnalysisRunsWithCalledProcessError_doesNotEmitBackVulnerability(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the process execution:
+    case where the process runs with called process error.
+    """
+
+    mocker.patch(
+        "subprocess.run",
+        side_effect=subprocess.CalledProcessError(cmd="", returncode=2),
     )
 
     test_agent.process(scan_message_file)

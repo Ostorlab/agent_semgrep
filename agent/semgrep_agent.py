@@ -1,11 +1,13 @@
 """Ostorlab Agent implementation for Semgrep"""
 import json
 import logging
+import mimetypes
 import os
 import subprocess
 import tempfile
-from typing import Dict, Any
+from typing import Any
 
+import magic
 from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
@@ -21,13 +23,38 @@ logging.basicConfig(
     handlers=[rich_logging.RichHandler(rich_tracebacks=True)],
 )
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
+
+
+def get_file_type(content: bytes, path: str | None) -> str:
+    if path is None:
+        mime = magic.from_buffer(content, mime=True)
+        file_type = mimetypes.guess_extension(mime)
+        return str(file_type)
+    if path is not None:
+        file_split = os.path.splitext(path)
+        if len(file_split) != 2:
+            return get_file_type(content, None)
+        return file_split[1]
+
+
+def run_analysis(input_file_path: str) -> bytes | None:
+    command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
+    try:
+        output = subprocess.run(command, capture_output=True, check=True)
+    except subprocess.CalledProcessError:
+        logger.error("An error occurred while running the command")
+        return None
+    except subprocess.TimeoutExpired:
+        logger.warning("Timeout")
+        return None
+
+    return output.stdout
 
 
 class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
     """Semgrep agent."""
 
-    def _emit_results(self, json_output: Dict[str, Any]) -> None:
+    def _emit_results(self, json_output: dict[str, Any]) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in result_parser.parse_results(json_output):
             self.report_vulnerability(
@@ -36,19 +63,6 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 risk_rating=vuln.risk_rating,
                 vulnerability_location=vuln.vulnerability_location,
             )
-
-    def _run_analysis(self, input_file_path: str) -> bytes | None:
-        command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
-        try:
-            output = subprocess.run(command, capture_output=True, check=True)
-        except subprocess.CalledProcessError:
-            logger.error("An error occurred while running the command")
-            return None
-        except subprocess.TimeoutExpired:
-            logger.warning("Timeout")
-            return None
-
-        return output.stdout
 
     def process(self, message: m.Message) -> None:
         """Trigger Semgrep analysis and emit found vulnerabilities
@@ -64,31 +78,21 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             logger.error("Received empty file.")
             return
 
-        if path is None:
-            logger.error("File path was not provided")
-            return
+        file_type = get_file_type(content, path)
 
-        file_split = os.path.splitext(path)
-
-        if len(file_split) != 2:
-            logger.error("File provided without extension")
-            return
-
-        with tempfile.NamedTemporaryFile(suffix=file_split[1]) as infile:
+        with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
             infile.write(content)
-
             infile.flush()
 
-            output = self._run_analysis(infile.name)
+            output = run_analysis(infile.name)
 
             if isinstance(output, bytes):
                 json_output = json.loads(output)
-
                 json_output["path"] = path
-
                 self._emit_results(json_output)
-
-        logger.info("Analysis completed")
+                logger.info("Process completed successfully")
+            else:
+                logger.error("Something went wrong")
 
 
 if __name__ == "__main__":

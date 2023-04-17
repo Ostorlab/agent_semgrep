@@ -27,10 +27,6 @@ For more information, please refer to the [Ostorlab Documentation](https://githu
 
 Agent Semgrep can be installed directly from the ostorlab agent store or built from this repository.
 
-
-
-
-
  ### Install directly from ostorlab agent store
 
  ```shell
@@ -75,4 +71,3 @@ git clone https://github.com/Ostorlab/agent_semgrep.git && cd agent_semgrep
 
 ## License
 [Apache](./LICENSE)
-

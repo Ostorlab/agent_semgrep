@@ -1,13 +1,13 @@
 """Module to parse semgrep json results."""
 import dataclasses
-from typing import Dict, Iterator, Any
+from typing import Any, Iterator
 
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
 
 RISK_RATING_MAPPING = {
-    "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.INFO,
+    "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": agent_report_vulnerability_mixin.RiskRating.LOW,
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
@@ -24,45 +24,20 @@ class Vulnerability:
     vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
 
 
-def construct_technical_detail(
-    title: str, description: str, impact: str, references: Dict[str, str]
-) -> str:
-    """Construct human readable report using vulnerability json
+def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
+    check_id = vulnerability["check_id"]
+    line = vulnerability["start"]["line"]
+    col = vulnerability["start"]["col"]
+    message = vulnerability["extra"]["message"]
+    path = path or vulnerability.get("path", "")
 
-    Args:
-        title
-        description
-        impact
-        references
-
-    Returns:
-        Technical detail of the vulnerability
-    """
-
-    references_list = "\n".join(list(references.values()))
-
-    technical_detail = f"""
-```
-Vulnerability Report:
-
-Vulnerability: {title}
-
-Impact: {impact}
-
-Description:
-
-{description}
-
-References:
-
-{references_list}
-```
-"""
+    technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`.
+The issue was identified as `{check_id}` and the message from the code analysis is `{message}`."""
 
     return technical_detail
 
 
-def parse_results(json_output: Dict[str, Any]) -> Iterator[Vulnerability]:
+def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
     Args:
@@ -78,25 +53,17 @@ def parse_results(json_output: Dict[str, Any]) -> Iterator[Vulnerability]:
 
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
-
         description = extra.get("message", "")
-
         title = description.split(".")[0]
-
         metadata = extra.get("metadata", {})
-
         impact = metadata.get("impact", "UNKNOWN")
-
         fix = extra.get("fix", "")
-
         references = {
             f"source-{idx + 1}": value
             for (idx, value) in enumerate(metadata.get("references", []))
         }
 
-        technical_detail = construct_technical_detail(
-            title, description, impact, references
-        )
+        technical_detail = construct_technical_detail(vulnerability, file_path)
 
         vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
             asset=file.File(),
