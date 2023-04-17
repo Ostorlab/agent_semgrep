@@ -1,4 +1,4 @@
 ostorlab[agent]
 rich
 semgrep
-magic
+python-magic
