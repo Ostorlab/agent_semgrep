@@ -1,3 +1,4 @@
+"""Unittests for Semgrep Agent Utilities"""
 from agent import utils
 from ostorlab.agent.message import message
 
