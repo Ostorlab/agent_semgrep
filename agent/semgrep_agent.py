@@ -71,9 +71,9 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 json_output = json.loads(output)
                 json_output["path"] = path
                 self._emit_results(json_output)
-                logger.info("Process completed without errors")
+                logger.info("Process completed without errors.")
             else:
-                logger.error("Process completed with errors")
+                logger.error("Process completed with errors.")
 
     def _emit_results(self, json_output: dict[str, Any]) -> None:
         """Parses results and emits vulnerabilities."""
