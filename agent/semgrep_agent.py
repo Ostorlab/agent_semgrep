@@ -66,8 +66,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 logger.error("Process completed with errors")
 
     def _run_analysis(self, input_file_path: str) -> bytes | None:
-        command = ["semgrep", "--config", "auto",
-                   "-q", "--json", input_file_path]
+        command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
         try:
             output = subprocess.run(
                 command, capture_output=True, check=True, timeout=self.timeout
