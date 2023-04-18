@@ -3,8 +3,8 @@ import dataclasses
 import mimetypes
 import os
 from typing import Any, Iterator
-import magic
 
+import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from ostorlab.assets import file
@@ -28,10 +28,10 @@ class Vulnerability:
 
 
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
-    check_id = vulnerability["check_id"]
-    line = vulnerability["start"]["line"]
-    col = vulnerability["start"]["col"]
-    message = vulnerability["extra"]["message"]
+    check_id = vulnerability.get("check_id", "N/A")
+    line = vulnerability.get("start", {}).get("line", "N/A")
+    col = vulnerability.get("start", {}).get("col", "N/A")
+    message = vulnerability["extra"].get("message", "N/A")
     path = path or vulnerability.get("path", "")
 
     technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`.
@@ -104,8 +104,8 @@ def get_file_type(content: bytes, path: str | None) -> str:
         mime = magic.from_buffer(content, mime=True)
         file_type = mimetypes.guess_extension(mime)
         return str(file_type)
-    if path is not None:
-        file_split = os.path.splitext(path)
-        if len(file_split[1]) < 2:
+    else:
+        file_split = os.path.splitext(path)[1]
+        if len(file_split) < 2:
             return get_file_type(content, None)
-        return file_split[1]
+        return file_split

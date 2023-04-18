@@ -61,11 +61,11 @@ git clone https://github.com/Ostorlab/agent_semgrep.git && cd agent_semgrep
  4. Run the agent using on of the following commands:
 	 * If you did not specify an organization when building the image:
 	  ```shell
-	  ostorlab scan run --agent agent//semgrep ip 8.8.8.8
+	  ostorlab scan run --agent agent//semgrep file code.c
 	  ```
 	 * If you specified an organization when building the image:
 	  ```shell
-	  ostorlab scan run --agent agent/[ORGANIZATION]/semgrep ip 8.8.8.8
+	  ostorlab scan run --agent agent/[ORGANIZATION]/semgrep file code.c
 	  ```
 
 

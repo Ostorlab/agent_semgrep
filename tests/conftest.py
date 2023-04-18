@@ -2,14 +2,14 @@
     conftest for semgrep agent tests
 """
 
-import pytest
 import random
 import pathlib
-from typing import Dict
 
+import pytest
 from ostorlab.agent.message import message
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.runtimes import definitions as runtime_definitions
+
 from agent import semgrep_agent
 
 
@@ -25,7 +25,7 @@ def scan_message_file() -> message.Message:
 
 @pytest.fixture()
 def test_agent(
-    agent_persist_mock: Dict[str | bytes, str | bytes]
+    agent_persist_mock: dict[str | bytes, str | bytes]
 ) -> semgrep_agent.SemgrepAgent:
     with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
         definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)

@@ -8,7 +8,7 @@ description: |
   ```shell
   ostorlab scan run --install --agent agent/ostorlab/semgrep file code.c
   ```
-  This command will download and install `agent/ostorlab/semgrep` and target the ip `8.8.8.8`.
+  This command will download and install `agent/ostorlab/semgrep` and analyze the file `code.c`.
   For more information, please refer to the [Ostorlab Documentation](https://github.com/Ostorlab/ostorlab/blob/main/README.md)
   ## Usage
   Agent Semgrep can be installed directly from the ostorlab agent store or built from this repository.

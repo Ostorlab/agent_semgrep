@@ -3,12 +3,11 @@ import json
 import logging
 import subprocess
 import tempfile
-from typing import Any, Optional
+from typing import Any
 
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.agent import agent, definitions as agent_definitions
-from ostorlab.runtimes import definitions as runtime_definitions
+from ostorlab.agent import agent
 from rich import logging as rich_logging
 
 from agent import utils
@@ -22,18 +21,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+COMMAND_TIMEOUT = 90
+
+
+def _run_analysis(input_file_path: str) -> bytes | None:
+    command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
+    try:
+        output = subprocess.run(
+            command, capture_output=True, check=True, timeout=COMMAND_TIMEOUT
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            "An error occurred while running the command. Error message: %s", e
+        )
+        return None
+    except subprocess.TimeoutExpired:
+        logger.warning("Timeout occurred while running command")
+        return None
+
+    return output.stdout
+
 
 class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
     """Semgrep agent."""
-
-    def __init__(
-        self,
-        agent_definition: agent_definitions.AgentDefinition,
-        agent_settings: runtime_definitions.AgentSettings,
-    ) -> None:
-        agent.Agent.__init__(self, agent_definition, agent_settings)
-        agent_report_vulnerability_mixin.AgentReportVulnMixin.__init__(self)
-        self.timeout: Optional[int] = self.args.get("timeout")
 
     def process(self, message: m.Message) -> None:
         """Trigger Semgrep analysis and emit found vulnerabilities
@@ -55,7 +65,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             infile.write(content)
             infile.flush()
 
-            output = self._run_analysis(infile.name)
+            output = _run_analysis(infile.name)
 
             if isinstance(output, bytes):
                 json_output = json.loads(output)
@@ -64,23 +74,6 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 logger.info("Process completed without errors")
             else:
                 logger.error("Process completed with errors")
-
-    def _run_analysis(self, input_file_path: str) -> bytes | None:
-        command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
-        try:
-            output = subprocess.run(
-                command, capture_output=True, check=True, timeout=self.timeout
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error(
-                "An error occurred while running the command. Error message: %s", e
-            )
-            return None
-        except subprocess.TimeoutExpired:
-            logger.warning("Timeout occured while running command")
-            return None
-
-        return output.stdout
 
     def _emit_results(self, json_output: dict[str, Any]) -> None:
         """Parses results and emits vulnerabilities."""
