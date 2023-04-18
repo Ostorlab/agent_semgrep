@@ -1,6 +1,9 @@
-"""Module to parse semgrep json results."""
+"""Utilities for Semgrep Agent"""
 import dataclasses
+import mimetypes
+import os
 from typing import Any, Iterator
+import magic
 
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
@@ -94,3 +97,15 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
             risk_rating=RISK_RATING_MAPPING[impact],
             vulnerability_location=vuln_location,
         )
+
+
+def get_file_type(content: bytes, path: str | None) -> str:
+    if path is None:
+        mime = magic.from_buffer(content, mime=True)
+        file_type = mimetypes.guess_extension(mime)
+        return str(file_type)
+    if path is not None:
+        file_split = os.path.splitext(path)
+        if len(file_split[1]) < 2:
+            return get_file_type(content, None)
+        return file_split[1]

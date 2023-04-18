@@ -6,6 +6,7 @@ from ostorlab.agent.message import message
 from pytest_mock import plugin
 
 from agent import semgrep_agent
+from agent import utils
 
 JSON_OUTPUT = b"""
 {
@@ -107,7 +108,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     """
 
     mocker.patch(
-        "agent.semgrep_agent.run_analysis",
+        "agent.semgrep_agent.SemgrepAgent._run_analysis",
         return_value=JSON_OUTPUT,
     )
 
@@ -116,6 +117,40 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     assert len(agent_mock) > 0
     assert agent_mock[0].selector == "v3.report.vulnerability"
     assert agent_mock[0].data["risk_rating"] == "MEDIUM"
+    assert (
+        agent_mock[0].data["title"]
+        == "Using CBC with PKCS5Padding is susceptible to padding oracle attacks"
+    )
+    assert len(agent_mock[0].data["references"]) >= 3
+
+
+def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[Union[str, bytes], Union[str, bytes]],
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+
+    mocker.patch(
+        "agent.semgrep_agent.SemgrepAgent._run_analysis",
+        return_value=JSON_OUTPUT,
+    )
+
+    del scan_message_file.data["path"]
+
+    test_agent.process(scan_message_file)
+
+    assert len(agent_mock) > 0
+    assert agent_mock[0].selector == "v3.report.vulnerability"
+    assert agent_mock[0].data["risk_rating"] == "MEDIUM"
+    assert (
+        agent_mock[0].data["title"]
+        == "Using CBC with PKCS5Padding is susceptible to padding oracle attacks"
+    )
     assert len(agent_mock[0].data["references"]) >= 3
 
 
@@ -131,7 +166,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_doesNotEmitBackVulnerability(
     """
 
     mocker.patch(
-        "agent.semgrep_agent.run_analysis",
+        "agent.semgrep_agent.SemgrepAgent._run_analysis",
         return_value=EMPTY_JSON_OUTPUT,
     )
 
@@ -179,3 +214,28 @@ def testAgentSemgrep_whenAnalysisRunsWithCalledProcessError_doesNotEmitBackVulne
     test_agent.process(scan_message_file)
 
     assert len(agent_mock) == 0
+
+
+def testGetFileType_withPathProvided_returnsBackFileType(
+    scan_message_file: message.Message,
+) -> None:
+    """Unittest for the file type extraction:
+    case when the path is provided
+    """
+    content = scan_message_file.data["content"]
+    path = scan_message_file.data["path"]
+    file_type = utils.get_file_type(content, path)
+
+    assert file_type == ".java"
+
+
+def testGetFileType_withoutPathProvided_returnsBackFileType(
+    scan_message_file: message.Message,
+) -> None:
+    """Unittest for the file type extraction:
+    case when the path is not provided
+    """
+    content = scan_message_file.data["content"]
+    file_type = utils.get_file_type(content, None)
+
+    assert file_type == ".java"
