@@ -1,7 +1,9 @@
 """Unittests for Semgrep Agent Utilities"""
 import typing
-from agent import utils
+
 from ostorlab.agent.message import message
+
+from agent import utils
 
 JSON_OUTPUT = {
     "errors": [],
@@ -19,7 +21,9 @@ JSON_OUTPUT = {
                 "fix": "AES/GCM/NoPadding",
                 "is_ignored": False,
                 "lines": "        Cipher cipher = Cipher.getInstance('AES/CBC/PKCS5Padding');",
-                "message": "Using CBC with PKCS5Padding is susceptible to padding oracle attacks. A malicious actor could discern the difference between plaintext with valid or invalid padding. Further, CBC mode does not include any integrity checks. Use 'AES/GCM/NoPadding' instead.",
+                "message": "Using CBC with PKCS5Padding is susceptible to padding oracle attacks. "
+                "A malicious actor could discern the difference between plaintext with valid or invalid padding. "
+                "Further, CBC mode does not include any integrity checks. Use 'AES/GCM/NoPadding' instead.",
                 "metadata": {
                     "category": "security",
                     "confidence": "HIGH",
@@ -35,14 +39,14 @@ JSON_OUTPUT = {
                     ],
                     "references": [
                         "https://capec.mitre.org/data/definitions/463.html",
-                        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#cipher-modes",
+                        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
                         "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
                     ],
                     "semgrep.dev": {
                         "rule": {
                             "origin": "community",
                             "rule_id": "ZqU5oD",
-                            "url": "https://semgrep.dev/playground/r/zyTeEO/java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle",
+                            "url": "https://semgrep.dev/[REDACTED]",
                             "version_id": "zyTeEO",
                         }
                     },
@@ -140,7 +144,7 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability() -> None:
                 vuln.targeted_by_ransomware,
             ]
         )
-        assert vuln.security_issue == True
+        assert vuln.security_issue is True
 
 
 def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability() -> None:

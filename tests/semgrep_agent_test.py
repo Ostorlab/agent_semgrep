@@ -1,7 +1,5 @@
 """Unittests for Semgrep agent."""
-import json
 import subprocess
-import typing
 
 from ostorlab.agent.message import message
 from pytest_mock import plugin
@@ -47,7 +45,7 @@ JSON_OUTPUT = b"""
           ],
           "references": [
             "https://capec.mitre.org/data/definitions/463.html",
-            "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#cipher-modes",
+            "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
             "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY"
           ],
           "semgrep.dev": {
@@ -144,7 +142,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
 
     assert [entry["url"] for entry in vuln["references"]] == [
         "https://capec.mitre.org/data/definitions/463.html",
-        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#cipher-modes",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
         "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
     ]
     assert not any(
@@ -156,7 +154,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
             vuln["targeted_by_ransomware"],
         ]
     )
-    assert vuln["security_issue"] == True
+    assert vuln["security_issue"] is True
     assert (
         vuln["technical_detail"]
         == "The file `files/vulnerable.java` has a security issue at line `28`, column `44`.\n"
@@ -203,7 +201,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
 
     assert [entry["url"] for entry in vuln["references"]] == [
         "https://capec.mitre.org/data/definitions/463.html",
-        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#cipher-modes",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
         "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
     ]
     assert not any(
@@ -215,7 +213,7 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
             vuln["targeted_by_ransomware"],
         ]
     )
-    assert vuln["security_issue"] == True
+    assert vuln["security_issue"] is True
     assert (
         vuln["technical_detail"]
         == "The file `/tmp/tmpza6g8qu0.java` has a security issue at line `28`, column `44`.\n"
