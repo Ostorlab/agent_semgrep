@@ -1,36 +1,73 @@
-# Ostorlab Template Agent
 
-This repo is a template to build an Ostorlab agent in Python. It ships with good best practices like:
+<h1 align="center">Agent Semgrep</h1>
 
-* Github actions workflow
-* Linting checks
-* Static typing checks with Mypy
-* Running unit test with Pytest
-* Compute test coverage
+<p align="center">
+<img src="https://img.shields.io/badge/License-Apache_2.0-brightgreen.svg">
+<img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg">
+</p>
+
+_Semgrep is a fast, open-source, static analysis engine for finding bugs, detecting vulnerabilities in third-party dependencies, and enforcing code standards. Semgrep analyzes code locally on your computer or in your build environment: code is never uploaded._
+
+---
+
+
+This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for [Semgrep](https://github.com/returntocorp/semgrep).
 
 ## Getting Started
+To perform your first analysis, simply run the following command.
+```shell
+ostorlab scan run --install --agent agent/ostorlab/semgrep file code.c
+```
 
-Here are links to good resources to get started:
+This command will download and install `agent/ostorlab/semgrep` and analyze the source file `code.c`.
+For more information, please refer to the [Ostorlab Documentation](https://github.com/Ostorlab/ostorlab/blob/main/README.md)
 
-* [Write An Agent](https://docs.ostorlab.co/tutorials/write-an-ostorlab-agent/)
-* [Use Ostorlab](https://docs.ostorlab.co/tutorials/run-your-first-scan/)
-* [Debugging and Testing Agents](https://docs.ostorlab.co/tutorials/debugging-agents/)
-* [Ostorlab Internals](https://docs.ostorlab.co/tutorials/life-of-a-scan/)
 
-## Ideas for Agents to build
+## Usage
 
-Implementation of popular tools like:
+Agent Semgrep can be installed directly from the ostorlab agent store or built from this repository.
 
-* [semgrep](https://github.com/returntocorp/semgrep) for source code scanning.
-* [nbtscan](http://www.unixwiz.net/tools/nbtscan.html): Scans for open NETBIOS nameservers on your target’s network.
-* [onesixtyone](https://github.com/trailofbits/onesixtyone): Fast scanner to find publicly exposed SNMP services.
-* [Retire.js](http://retirejs.github.io/retire.js/): Scanner detecting the use of JavaScript libraries with known
-  vulnerabilities.
-* [snallygaster](https://github.com/hannob/snallygaster): Finds file leaks and other security problems on HTTP servers.
-* [testssl.sh](https://testssl.sh/): Identify various TLS/SSL weaknesses, including Heartbleed, CRIME and ROBOT.
-* [TruffleHog](https://github.com/trufflesecurity/truffleHog): Searches through git repositories for high entropy
-  strings and secrets, digging deep into commit history.
-* [cve-bin-tool](https://github.com/intel/cve-bin-tool): Scan binaries for vulnerable components.
-* [XSStrike](https://github.com/s0md3v/XSStrike): XSS web vulnerability scanner with generative payload.
-* ~~[Subjack](https://github.com/haccer/subjack): Subdomain takeover scanning tool.~~
-* [DnsReaper](https://github.com/punk-security/dnsReaper): Subdomain takeover scanning tool.
+ ### Install directly from ostorlab agent store
+
+ ```shell
+ ostorlab agent install agent/ostorlab/semgrep
+ ```
+
+You can then run the agent with the following command:
+`ostorlab scan run --install --agent agent/ostorlab/semgrep file code.c`
+
+
+### Build directly from the repository
+
+ 1. To build the semgrep agent you need to have [ostorlab](https://pypi.org/project/ostorlab/) installed in your machine. If you have already installed ostorlab, you can skip this step.
+
+```shell
+pip3 install ostorlab
+```
+
+ 2. Clone this repository.
+
+```shell
+git clone https://github.com/Ostorlab/agent_semgrep.git && cd agent_semgrep
+```
+
+ 3. Build the agent image using ostorlab cli.
+
+ ```shell
+ ostorlab agent build --file=ostorlab.yaml
+ ```
+ You can pass the optional flag `--organization` to specify your organisation. The organization is empty by default.
+
+ 4. Run the agent using on of the following commands:
+	 * If you did not specify an organization when building the image:
+	  ```shell
+	  ostorlab scan run --agent agent//semgrep file code.c
+	  ```
+	 * If you specified an organization when building the image:
+	  ```shell
+	  ostorlab scan run --agent agent/[ORGANIZATION]/semgrep file code.c
+	  ```
+
+
+## License
+[Apache](./LICENSE)
