@@ -53,8 +53,3 @@ out_selectors:
   - v3.report.vulnerability
 docker_file_path : Dockerfile 
 docker_build_root : .
-args:
-  - name: "timeout"
-    type: "number"    
-    description: "Process timeout (seconds)"
-    value: 90
