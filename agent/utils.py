@@ -28,11 +28,19 @@ class Vulnerability:
 
 
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
+    """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
+
+    Args:
+        vulnerability: Semgrep json output of a given vulnerability.
+        path: path to the vulnerable file
+
+    Returns:
+        Technical detail paragraph.
+    """
     check_id = vulnerability.get("check_id", "N/A")
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
-    path = path or vulnerability.get("path", "")
 
     technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`.
 The issue was identified as `{check_id}` and the message from the code analysis is `{message}`."""
@@ -61,6 +69,7 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")
+        file_path = file_path or vulnerability.get("path", "")
         references = {
             f"source-{idx + 1}": value
             for (idx, value) in enumerate(metadata.get("references", []))

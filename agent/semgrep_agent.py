@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 COMMAND_TIMEOUT = 90
 
 
-def _run_analysis(input_file_path: str) -> bytes | None:
-    command = ["semgrep", "--config", "auto", "-q", "--json", input_file_path]
+def _run_analysis(input_file_path: str) -> tuple[bytes, bytes] | None:
+    command = ["semgrep", "--config", "auto", "--json", input_file_path]
     try:
         output = subprocess.run(
             command, capture_output=True, check=True, timeout=COMMAND_TIMEOUT
@@ -39,7 +39,7 @@ def _run_analysis(input_file_path: str) -> bytes | None:
         logger.warning("Timeout occurred while running command")
         return None
 
-    return output.stdout
+    return (output.stdout, output.stderr)
 
 
 class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
@@ -67,13 +67,19 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
 
             output = _run_analysis(infile.name)
 
-            if isinstance(output, bytes):
-                json_output = json.loads(output)
+            if output is None:
+                logger.error("Subprocess completed with errors.")
+                return
+
+            stdout, stderr = output
+
+            if isinstance(stdout, bytes) and len(stderr) == 0:
+                json_output = json.loads(stdout)
                 json_output["path"] = path
                 self._emit_results(json_output)
-                logger.info("Process completed without errors.")
+                logger.info("Semgrep completed without errors.")
             else:
-                logger.error("Process completed with errors.")
+                logger.error("Semgrep completed with errors %s", stderr)
 
     def _emit_results(self, json_output: dict[str, Any]) -> None:
         """Parses results and emits vulnerabilities."""
