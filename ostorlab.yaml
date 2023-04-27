@@ -1,6 +1,6 @@
 kind: Agent
 name: semgrep
-version: 0.0.1 
+version: 0.0.2
 description: |
   This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for [Semgrep](https://github.com/returntocorp/semgrep) by r2c.
   ## Getting Started
