@@ -25,7 +25,7 @@ COMMAND_TIMEOUT = 90
 
 
 def _run_analysis(input_file_path: str) -> tuple[bytes, bytes] | None:
-    command = ["semgrep", "--config", "auto", "--json", input_file_path]
+    command = ["semgrep", "-q", "--config", "auto", "--json", input_file_path]
     try:
         output = subprocess.run(
             command, capture_output=True, check=True, timeout=COMMAND_TIMEOUT
