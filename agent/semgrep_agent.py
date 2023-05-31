@@ -23,6 +23,32 @@ logger = logging.getLogger(__name__)
 
 COMMAND_TIMEOUT = 90
 
+FILE_TYPE_BLACKLIST = (
+    ".car",
+    ".dex",
+    ".dylib",
+    ".eot",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".json",
+    ".mobileprovision",
+    ".nib",
+    ".pdf",
+    ".plist",
+    ".png",
+    ".psd",
+    ".so",
+    ".strings",
+    ".svg",
+    ".symbols",
+    ".ttf",
+    ".woff",
+    ".woff2",
+    ".zip",
+)
+
 
 def _run_analysis(input_file_path: str) -> tuple[bytes, bytes] | None:
     command = ["semgrep", "-q", "--config", "auto", "--json", input_file_path]
@@ -60,6 +86,11 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             return
 
         file_type = utils.get_file_type(content, path)
+        logger.info("Analyzing file `%s` with type `%s`.", path, file_type)
+
+        if file_type in FILE_TYPE_BLACKLIST:
+            logger.info("File type is blacklisted.")
+            return
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
             infile.write(content)
@@ -84,11 +115,11 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
     def _emit_results(self, json_output: dict[str, Any]) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in utils.parse_results(json_output):
+            logger.info("Found vulnerability: %s", vuln)
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
                 risk_rating=vuln.risk_rating,
-                vulnerability_location=vuln.vulnerability_location,
             )
 
 
