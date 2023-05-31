@@ -7,7 +7,6 @@ from typing import Any, Iterator
 import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.assets import file
 
 RISK_RATING_MAPPING = {
     "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
@@ -24,7 +23,6 @@ class Vulnerability:
     entry: kb.Entry
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
-    vulnerability_location: agent_report_vulnerability_mixin.VulnerabilityLocation
 
 
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
@@ -77,16 +75,6 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
 
         technical_detail = construct_technical_detail(vulnerability, file_path)
 
-        vuln_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
-            asset=file.File(),
-            metadata=[
-                agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
-                    metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
-                    value=file_path,
-                )
-            ],
-        )
-
         yield Vulnerability(
             entry=kb.Entry(
                 title=title,
@@ -104,7 +92,6 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
             ),
             technical_detail=technical_detail,
             risk_rating=RISK_RATING_MAPPING[impact],
-            vulnerability_location=vuln_location,
         )
 
 
