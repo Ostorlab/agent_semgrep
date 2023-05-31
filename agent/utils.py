@@ -69,7 +69,7 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
         fix = extra.get("fix", "")
         file_path = file_path or vulnerability.get("path", "")
         references = {
-            f"source-{idx + 1}": value
+            f"Reference: #{idx + 1}": value
             for (idx, value) in enumerate(metadata.get("references", []))
         }
 
