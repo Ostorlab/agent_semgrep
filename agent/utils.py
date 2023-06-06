@@ -63,7 +63,7 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
         description = extra.get("message", "")
-        title = description.split(".")[0]
+        title = description.split(". ")[0]
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")
