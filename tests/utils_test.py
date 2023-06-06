@@ -180,7 +180,9 @@ def testGetFileType_withoutPathProvided_returnsFileType(
 
 def testConstructVulnerabilityTitle_whenCheckIdIsAvailable_returnsTitle() -> None:
     check_id = "java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle"
+
     title = utils.construct_vulnerability_title(check_id)
+
     assert title == "Cbc Padding Oracle"
 
 
