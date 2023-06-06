@@ -46,6 +46,18 @@ The issue was identified as `{check_id}` and the message from the code analysis 
     return technical_detail
 
 
+def construct_vulnerability_title(check_id: str) -> str:
+    """Constructs a vulnerability title from Semgrep vulnerability check id.
+
+    Args:
+        check_id: Semgrep vulnerability check id.
+
+    Returns:
+        vulnerability title.
+    """
+    return check_id.split(".")[-1].replace("-", " ").title()
+
+
 def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
@@ -63,7 +75,9 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
         description = extra.get("message", "")
-        title = description.split(". ")[0]
+        title = construct_vulnerability_title(
+            vulnerability.get("check_id", "Uncategorized Vulnerability")
+        )
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")

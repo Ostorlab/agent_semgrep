@@ -93,7 +93,7 @@ def testConstructTechnicalDetail_whenMissingSomeDetail_returnsTechnicalDetail() 
     """Unittest for the technical detail generation:
     case when all details are provided
     """
-    vulnerability_json = VULNERABILITIES[0]
+    vulnerability_json = VULNERABILITIES[0].copy()
     del vulnerability_json["check_id"]
 
     technical_detail = utils.construct_technical_detail(
@@ -117,10 +117,7 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability() -> None:
     """
     for idx, vulnerability in enumerate(utils.parse_results(JSON_OUTPUT)):
         vuln = vulnerability.entry
-        assert (
-            vuln.title
-            == "Using CBC with PKCS5Padding is susceptible to padding oracle attacks"
-        )
+        assert vuln.title == "Cbc Padding Oracle"
         assert vuln.risk_rating == "MEDIUM"
         assert vuln.recommendation == "AES/GCM/NoPadding"
         assert (
@@ -179,3 +176,17 @@ def testGetFileType_withoutPathProvided_returnsFileType(
     file_type = utils.get_file_type(content, None)
 
     assert file_type == ".java"
+
+
+def testConstructVulnerabilityTitle_whenCheckIdIsAvailable_returnsTitle() -> None:
+    check_id = "java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle"
+    title = utils.construct_vulnerability_title(check_id)
+    assert title == "Cbc Padding Oracle"
+
+
+def testConstructVulnerabilityTitle_whenCheckIdIsNotAvailable_returnsDefaultTitle() -> (
+    None
+):
+    check_id = "Uncategorized Vulnerability"
+    title = utils.construct_vulnerability_title(check_id)
+    assert title == "Uncategorized Vulnerability"
