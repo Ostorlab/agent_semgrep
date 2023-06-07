@@ -2,7 +2,7 @@
 import dataclasses
 import mimetypes
 import os
-from typing import Any, Iterator
+import typing
 
 import magic
 from ostorlab.agent.kb import kb
@@ -25,12 +25,11 @@ class Vulnerability:
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
 
-def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
+def construct_technical_detail(vulnerability: dict[str, typing.Any]) -> str:
     """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
 
     Args:
         vulnerability: Semgrep json output of a given vulnerability.
-        path: path to the vulnerable file
 
     Returns:
         Technical detail paragraph.
@@ -39,6 +38,7 @@ def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
+    path = vulnerability.get("path", "N/A")
 
     technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`.
 The issue was identified as `{check_id}` and the message from the code analysis is `{message}`."""
@@ -58,7 +58,7 @@ def construct_vulnerability_title(check_id: str) -> str:
     return check_id.split(".")[-1].replace("-", " ").title()
 
 
-def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
+def parse_results(json_output: dict[str, typing.Any]) -> typing.Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
     Args:
@@ -67,8 +67,6 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     Yields:
         Vulnerability entry.
     """
-
-    file_path = json_output.get("path", "")
 
     vulnerabilities = json_output.get("results", [])
 
@@ -81,13 +79,12 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")
-        file_path = file_path or vulnerability.get("path", "")
         references = {
             f"Reference: #{idx + 1}": value
             for (idx, value) in enumerate(metadata.get("references", []))
         }
 
-        technical_detail = construct_technical_detail(vulnerability, file_path)
+        technical_detail = construct_technical_detail(vulnerability)
 
         yield Vulnerability(
             entry=kb.Entry(
