@@ -104,13 +104,20 @@ def test_agent(
 
 
 @pytest.fixture()
-def vulnerabilities(request: pytest.FixtureRequest) -> list[dict[str, typing.Any]]:
-    is_data_missing = request.param
+def vulnerabilities() -> list[dict[str, typing.Any]]:
     _vulnerabilities = typing.cast(
         list[dict[str, typing.Any]], JSON_OUTPUT.get("results")
     )
-    if is_data_missing is True:
-        del _vulnerabilities[0]["check_id"]
+
+    return _vulnerabilities
+
+
+@pytest.fixture()
+def vulnerabilities_with_missing_check_id() -> list[dict[str, typing.Any]]:
+    _vulnerabilities = typing.cast(
+        list[dict[str, typing.Any]], JSON_OUTPUT.get("results")
+    )
+    del _vulnerabilities[0]["check_id"]
 
     return _vulnerabilities
 

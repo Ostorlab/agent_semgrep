@@ -1,13 +1,11 @@
 """Unittests for Semgrep Agent Utilities"""
 import typing
 
-import pytest
 from ostorlab.agent.message import message
 
 from agent import utils
 
 
-@pytest.mark.parametrize("vulnerabilities", [False], indirect=True)
 def testConstructTechnicalDetail_allDetailsProvided_returnsTechnicalDetail(
     vulnerabilities: list[dict[str, typing.Any]],
 ) -> None:
@@ -28,7 +26,6 @@ def testConstructTechnicalDetail_allDetailsProvided_returnsTechnicalDetail(
     )
 
 
-@pytest.mark.parametrize("vulnerabilities", [False], indirect=True)
 def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
     semgrep_json_output: dict[str, typing.Any],
     vulnerabilities: list[dict[str, typing.Any]],
@@ -65,14 +62,13 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
         assert vuln.security_issue is True
 
 
-@pytest.mark.parametrize("vulnerabilities", [True], indirect=True)
 def testConstructTechnicalDetail_whenMissingSomeDetail_returnsTechnicalDetail(
-    vulnerabilities: list[dict[str, typing.Any]],
+    vulnerabilities_with_missing_check_id: list[dict[str, typing.Any]],
 ) -> None:
     """Unittest for the technical detail generation:
     case when all details are provided
     """
-    vulnerability_json = vulnerabilities[0]
+    vulnerability_json = vulnerabilities_with_missing_check_id[0]
 
     technical_detail = utils.construct_technical_detail(vulnerability_json)
 
