@@ -63,20 +63,6 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
         assert vuln.security_issue is True
 
 
-def testParseResults_whenCheckIdIsNotDefined_returnsVulnerability(
-    vulnerabilities_missing_check_id: list[dict[str, Any]],
-) -> None:
-    """Unittest for the results parser:
-    case when check id is missing
-    """
-    with pytest.raises(ValueError) as exception:
-        vulnerability_json = vulnerabilities_missing_check_id[0]
-        utils.construct_technical_detail(vulnerability_json)
-
-    assert exception.typename == "ValueError"
-    assert exception.value.args[0] == "Check ID is not defined"
-
-
 def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability(
     semgrep_json_output: dict[str, Any],
 ) -> None:
@@ -114,6 +100,9 @@ def testGetFileType_withoutPathProvided_returnsFileType(
 
 
 def testConstructVulnerabilityTitle_whenCheckIdIsAvailable_returnsTitle() -> None:
+    """Unittest for the title construction:
+    case when check id is available
+    """
     check_id = "java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle"
 
     title = utils.construct_vulnerability_title(check_id)
@@ -121,9 +110,12 @@ def testConstructVulnerabilityTitle_whenCheckIdIsAvailable_returnsTitle() -> Non
     assert title == "Cbc Padding Oracle"
 
 
-def testConstructVulnerabilityTitle_whenCheckIdIsNotAvailable_returnsDefaultTitle() -> (
-    None
-):
-    check_id = "Uncategorized Vulnerability"
-    title = utils.construct_vulnerability_title(check_id)
-    assert title == "Uncategorized Vulnerability"
+def testConstructVulnerabilityTitle_whenCheckIdIsNotAvailable_raisesException() -> None:
+    """Unittest for the title construction:
+    case when check id is missing
+    """
+    with pytest.raises(ValueError) as exception:
+        utils.construct_vulnerability_title(None)
+
+    assert exception.typename == "ValueError"
+    assert exception.value.args[0] == "Check ID is not defined"

@@ -35,8 +35,6 @@ def construct_technical_detail(vulnerability: dict[str, Any]) -> str:
         Technical detail paragraph.
     """
     check_id = vulnerability.get("check_id")
-    if check_id is None:
-        raise ValueError("Check ID is not defined")
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
@@ -48,7 +46,7 @@ The issue was identified as `{check_id}` and the message from the code analysis 
     return technical_detail
 
 
-def construct_vulnerability_title(check_id: str) -> str:
+def construct_vulnerability_title(check_id: str | None) -> str:
     """Constructs a vulnerability title from Semgrep vulnerability check id.
 
     Args:
@@ -57,6 +55,8 @@ def construct_vulnerability_title(check_id: str) -> str:
     Returns:
         vulnerability title.
     """
+    if check_id is None:
+        raise ValueError("Check ID is not defined")
     return check_id.split(".")[-1].replace("-", " ").title()
 
 
