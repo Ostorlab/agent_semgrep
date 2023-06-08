@@ -1,9 +1,7 @@
-"""
-    conftest for semgrep agent tests
-"""
-
+"""conftest for semgrep agent tests"""
 import random
 import pathlib
+from typing import Any, cast
 
 import pytest
 from ostorlab.agent.message import message
@@ -11,6 +9,68 @@ from ostorlab.agent import definitions as agent_definitions
 from ostorlab.runtimes import definitions as runtime_definitions
 
 from agent import semgrep_agent
+
+JSON_OUTPUT = {
+    "errors": [],
+    "paths": {
+        "_comment": "<add --verbose for a list of skipped paths>",
+        "scanned": ["/tmp/tmpza6g8qu0.java"],
+    },
+    "results": [
+        {
+            "check_id": "java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle",
+            "end": {"col": 66, "line": 28, "offset": 791},
+            "extra": {
+                "engine_kind": "OSS",
+                "fingerprint": "[REDACTED]",
+                "fix": "AES/GCM/NoPadding",
+                "is_ignored": False,
+                "lines": "        Cipher cipher = Cipher.getInstance('AES/CBC/PKCS5Padding');",
+                "message": "Using CBC with PKCS5Padding is susceptible to padding oracle attacks. "
+                "A malicious actor could discern the difference between plaintext with valid or invalid padding. "
+                "Further, CBC mode does not include any integrity checks. Use 'AES/GCM/NoPadding' instead.",
+                "metadata": {
+                    "category": "security",
+                    "confidence": "HIGH",
+                    "cwe": [
+                        "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+                    ],
+                    "impact": "MEDIUM",
+                    "license": "Commons Clause License Condition v1.0[LGPL-2.1-only]",
+                    "likelihood": "HIGH",
+                    "owasp": [
+                        "A03:2017 - Sensitive Data Exposure",
+                        "A02:2021 - Cryptographic Failures",
+                    ],
+                    "references": [
+                        "https://capec.mitre.org/data/definitions/463.html",
+                        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+                        "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+                    ],
+                    "semgrep.dev": {
+                        "rule": {
+                            "origin": "community",
+                            "rule_id": "ZqU5oD",
+                            "url": "https://semgrep.dev/[REDACTED]",
+                            "version_id": "zyTeEO",
+                        }
+                    },
+                    "shortlink": "https://sg.run/ydxr",
+                    "source": "https://semgrep.dev/r/java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle",
+                    "source-rule-url": "https://find-sec-bugs.github.io/bugs.htm#PADDING_ORACLE",
+                    "subcategory": ["audit"],
+                    "technology": ["java"],
+                },
+                "metavars": {},
+                "severity": "WARNING",
+            },
+            "path": "/tmp/tmpza6g8qu0.java",
+            "start": {"col": 44, "line": 28, "offset": 769},
+        }
+    ],
+    "version": "1.17.1",
+    "path": "/code/app.java",
+}
 
 
 @pytest.fixture
@@ -38,3 +98,15 @@ def test_agent(
             redis_url="redis://guest:guest@localhost:6379",
         )
         return semgrep_agent.SemgrepAgent(definition, settings)
+
+
+@pytest.fixture()
+def vulnerabilities() -> list[dict[str, Any]]:
+    vulnz = cast(list[dict[str, Any]], JSON_OUTPUT.get("results"))
+
+    return vulnz
+
+
+@pytest.fixture()
+def semgrep_json_output() -> dict[str, Any]:
+    return JSON_OUTPUT

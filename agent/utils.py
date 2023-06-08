@@ -25,25 +25,39 @@ class Vulnerability:
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
 
-def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
+def construct_technical_detail(vulnerability: dict[str, Any]) -> str:
     """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
 
     Args:
         vulnerability: Semgrep json output of a given vulnerability.
-        path: path to the vulnerable file
 
     Returns:
         Technical detail paragraph.
     """
-    check_id = vulnerability.get("check_id", "N/A")
+    check_id = vulnerability.get("check_id")
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
+    path = vulnerability.get("path", "N/A")
 
     technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`.
 The issue was identified as `{check_id}` and the message from the code analysis is `{message}`."""
 
     return technical_detail
+
+
+def construct_vulnerability_title(check_id: str | None) -> str:
+    """Constructs a vulnerability title from Semgrep vulnerability check id.
+
+    Args:
+        check_id: Semgrep vulnerability check id.
+
+    Returns:
+        vulnerability title.
+    """
+    if check_id is None:
+        raise ValueError("Check ID is not defined")
+    return check_id.split(".")[-1].replace("-", " ").title()
 
 
 def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
@@ -56,24 +70,21 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
         Vulnerability entry.
     """
 
-    file_path = json_output.get("path", "")
-
     vulnerabilities = json_output.get("results", [])
 
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
         description = extra.get("message", "")
-        title = description.split(".")[0]
+        title = construct_vulnerability_title(vulnerability.get("check_id"))
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")
-        file_path = file_path or vulnerability.get("path", "")
         references = {
             f"Reference: #{idx + 1}": value
             for (idx, value) in enumerate(metadata.get("references", []))
         }
 
-        technical_detail = construct_technical_detail(vulnerability, file_path)
+        technical_detail = construct_technical_detail(vulnerability)
 
         yield Vulnerability(
             entry=kb.Entry(
