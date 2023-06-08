@@ -1,10 +1,7 @@
-"""
-    conftest for semgrep agent tests
-"""
-
+"""conftest for semgrep agent tests"""
 import random
 import pathlib
-import typing
+from typing import Any, cast
 
 import pytest
 from ostorlab.agent.message import message
@@ -104,14 +101,21 @@ def test_agent(
 
 
 @pytest.fixture()
-def vulnerabilities() -> list[dict[str, typing.Any]]:
-    _vulnerabilities = typing.cast(
-        list[dict[str, typing.Any]], JSON_OUTPUT.get("results")
-    )
+def vulnerabilities() -> list[dict[str, Any]]:
+    vulnz = cast(list[dict[str, Any]], JSON_OUTPUT.get("results"))
 
-    return _vulnerabilities
+    return vulnz
 
 
 @pytest.fixture()
-def semgrep_json_output() -> dict[str, typing.Any]:
+def vulnerabilities_missing_check_id() -> list[dict[str, Any]]:
+    vulnz = cast(list[dict[str, Any]], JSON_OUTPUT.get("results"))
+
+    del vulnz[0]["check_id"]
+
+    return vulnz
+
+
+@pytest.fixture()
+def semgrep_json_output() -> dict[str, Any]:
     return JSON_OUTPUT

@@ -1,13 +1,14 @@
 """Unittests for Semgrep Agent Utilities"""
-import typing
+from typing import Any
 
+import pytest
 from ostorlab.agent.message import message
 
 from agent import utils
 
 
 def testConstructTechnicalDetail_allDetailsProvided_returnsTechnicalDetail(
-    vulnerabilities: list[dict[str, typing.Any]],
+    vulnerabilities: list[dict[str, Any]],
 ) -> None:
     """Unittest for the technical detail generation:
     case when all details are provided
@@ -27,8 +28,8 @@ def testConstructTechnicalDetail_allDetailsProvided_returnsTechnicalDetail(
 
 
 def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
-    semgrep_json_output: dict[str, typing.Any],
-    vulnerabilities: list[dict[str, typing.Any]],
+    semgrep_json_output: dict[str, Any],
+    vulnerabilities: list[dict[str, Any]],
 ) -> None:
     """Unittest for the results parser:
     case when vulnerabilities are found
@@ -62,8 +63,22 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
         assert vuln.security_issue is True
 
 
+def testParseResults_whenCheckIdIsNotDefined_returnsVulnerability(
+    vulnerabilities_missing_check_id: list[dict[str, Any]],
+) -> None:
+    """Unittest for the results parser:
+    case when check id is missing
+    """
+    with pytest.raises(ValueError) as exception:
+        vulnerability_json = vulnerabilities_missing_check_id[0]
+        utils.construct_technical_detail(vulnerability_json)
+
+    assert exception.typename == "ValueError"
+    assert exception.value.args[0] == "Check ID is not defined"
+
+
 def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability(
-    semgrep_json_output: dict[str, typing.Any],
+    semgrep_json_output: dict[str, Any],
 ) -> None:
     """Unittest for the results parser:
     case when no vulnerabilities are found

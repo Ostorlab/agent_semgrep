@@ -2,7 +2,7 @@
 import dataclasses
 import mimetypes
 import os
-import typing
+from typing import Any, Iterator
 
 import magic
 from ostorlab.agent.kb import kb
@@ -25,7 +25,7 @@ class Vulnerability:
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
 
-def construct_technical_detail(vulnerability: dict[str, typing.Any]) -> str:
+def construct_technical_detail(vulnerability: dict[str, Any]) -> str:
     """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
 
     Args:
@@ -35,6 +35,8 @@ def construct_technical_detail(vulnerability: dict[str, typing.Any]) -> str:
         Technical detail paragraph.
     """
     check_id = vulnerability.get("check_id")
+    if check_id is None:
+        raise ValueError("Check ID is not defined")
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
@@ -58,7 +60,7 @@ def construct_vulnerability_title(check_id: str) -> str:
     return check_id.split(".")[-1].replace("-", " ").title()
 
 
-def parse_results(json_output: dict[str, typing.Any]) -> typing.Iterator[Vulnerability]:
+def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
     Args:
