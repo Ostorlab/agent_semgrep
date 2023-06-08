@@ -62,27 +62,6 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
         assert vuln.security_issue is True
 
 
-def testConstructTechnicalDetail_whenMissingSomeDetail_returnsTechnicalDetail(
-    vulnerabilities_with_missing_check_id: list[dict[str, typing.Any]],
-) -> None:
-    """Unittest for the technical detail generation:
-    case when all details are provided
-    """
-    vulnerability_json = vulnerabilities_with_missing_check_id[0]
-
-    technical_detail = utils.construct_technical_detail(vulnerability_json)
-
-    assert (
-        technical_detail
-        == "The file `/tmp/tmpza6g8qu0.java` has a security issue at line `28`, column `44`.\n"
-        "The issue was identified as `N/A` "
-        "and the message from the code analysis is "
-        "`Using CBC with PKCS5Padding is susceptible to padding oracle attacks. "
-        "A malicious actor could discern the difference between plaintext with valid or invalid padding. "
-        "Further, CBC mode does not include any integrity checks. Use 'AES/GCM/NoPadding' instead.`."
-    )
-
-
 def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability(
     semgrep_json_output: dict[str, typing.Any],
 ) -> None:

@@ -113,15 +113,5 @@ def vulnerabilities() -> list[dict[str, typing.Any]]:
 
 
 @pytest.fixture()
-def vulnerabilities_with_missing_check_id() -> list[dict[str, typing.Any]]:
-    _vulnerabilities = typing.cast(
-        list[dict[str, typing.Any]], JSON_OUTPUT.get("results")
-    )
-    del _vulnerabilities[0]["check_id"]
-
-    return _vulnerabilities
-
-
-@pytest.fixture()
 def semgrep_json_output() -> dict[str, typing.Any]:
     return JSON_OUTPUT

@@ -34,7 +34,7 @@ def construct_technical_detail(vulnerability: dict[str, typing.Any]) -> str:
     Returns:
         Technical detail paragraph.
     """
-    check_id = vulnerability.get("check_id", "N/A")
+    check_id = vulnerability.get("check_id")
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
@@ -73,9 +73,7 @@ def parse_results(json_output: dict[str, typing.Any]) -> typing.Iterator[Vulnera
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
         description = extra.get("message", "")
-        title = construct_vulnerability_title(
-            vulnerability.get("check_id", "Uncategorized Vulnerability")
-        )
+        title = construct_vulnerability_title(vulnerability.get("check_id"))
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")
