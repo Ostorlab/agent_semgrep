@@ -13,11 +13,13 @@ def testConstructTechnicalDetail_allDetailsProvided_returnsTechnicalDetail(
     case when all details are provided
     """
     vulnerability_json = vulnerabilities[0]
-    technical_detail = utils.construct_technical_detail(vulnerability_json)
+    technical_detail = utils.construct_technical_detail(
+        vulnerability_json, "files/vulnerable.java"
+    )
 
     assert (
         technical_detail
-        == "The file `/tmp/tmpza6g8qu0.java` has a security issue at line `28`, column `44`.\n"
+        == "The file `files/vulnerable.java` has a security issue at line `28`, column `44`.\n"
         "The issue was identified as `java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle` "
         "and the message from the code analysis is "
         "`Using CBC with PKCS5Padding is susceptible to padding oracle attacks. "

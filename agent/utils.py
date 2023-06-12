@@ -25,11 +25,12 @@ class Vulnerability:
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
 
-def construct_technical_detail(vulnerability: dict[str, typing.Any]) -> str:
+def construct_technical_detail(vulnerability: dict[str, typing.Any], path: str) -> str:
     """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
 
     Args:
         vulnerability: Semgrep json output of a given vulnerability.
+        path: Analyzed file path
 
     Returns:
         Technical detail paragraph.
@@ -38,7 +39,7 @@ def construct_technical_detail(vulnerability: dict[str, typing.Any]) -> str:
     line = vulnerability.get("start", {}).get("line", "N/A")
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
-    path = vulnerability.get("path", "N/A")
+    path = path or vulnerability.get("path", "N/A")
 
     technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`.
 The issue was identified as `{check_id}` and the message from the code analysis is `{message}`."""
@@ -69,6 +70,7 @@ def parse_results(json_output: dict[str, typing.Any]) -> typing.Iterator[Vulnera
     """
 
     vulnerabilities = json_output.get("results", [])
+    path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
@@ -82,7 +84,7 @@ def parse_results(json_output: dict[str, typing.Any]) -> typing.Iterator[Vulnera
             for (idx, value) in enumerate(metadata.get("references", []))
         }
 
-        technical_detail = construct_technical_detail(vulnerability)
+        technical_detail = construct_technical_detail(vulnerability, path)
 
         yield Vulnerability(
             entry=kb.Entry(
