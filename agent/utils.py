@@ -2,7 +2,7 @@
 import dataclasses
 import mimetypes
 import os
-import typing
+from typing import Any, Iterator
 
 import magic
 from ostorlab.agent.kb import kb
@@ -25,7 +25,7 @@ class Vulnerability:
     risk_rating: agent_report_vulnerability_mixin.RiskRating
 
 
-def construct_technical_detail(vulnerability: dict[str, typing.Any], path: str) -> str:
+def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
     """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
 
     Args:
@@ -47,7 +47,7 @@ The issue was identified as `{check_id}` and the message from the code analysis 
     return technical_detail
 
 
-def construct_vulnerability_title(check_id: str) -> str:
+def construct_vulnerability_title(check_id: str | None) -> str:
     """Constructs a vulnerability title from Semgrep vulnerability check id.
 
     Args:
@@ -56,10 +56,12 @@ def construct_vulnerability_title(check_id: str) -> str:
     Returns:
         vulnerability title.
     """
+    if check_id is None:
+        raise ValueError("Check ID is not defined")
     return check_id.split(".")[-1].replace("-", " ").title()
 
 
-def parse_results(json_output: dict[str, typing.Any]) -> typing.Iterator[Vulnerability]:
+def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
     Args:
