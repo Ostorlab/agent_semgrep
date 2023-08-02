@@ -136,11 +136,19 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
         "valid or invalid padding. Further, CBC mode does not include any "
         "integrity checks. Use 'AES/GCM/NoPadding' instead."
     )
-
-    assert [entry["url"] for entry in vuln["references"]] == [
-        "https://capec.mitre.org/data/definitions/463.html",
-        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
-        "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+    assert vuln["references"] == [
+        {
+            "title": "capec.mitre.org",
+            "url": "https://capec.mitre.org/data/definitions/463.html",
+        },
+        {
+            "title": "cheatsheetseries.owasp.org",
+            "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+        },
+        {
+            "title": "find-sec-bugs.github.io",
+            "url": "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+        },
     ]
     assert not any(
         [
@@ -154,19 +162,16 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     assert vuln["security_issue"] is True
     assert (
         vuln["technical_detail"]
-        == "The file `tests/files/vulnerable.java` has a security issue at line `28`, column "
-        "`44`:\n"
+        == "Cbc Padding Oracle: Using CBC with PKCS5Padding is susceptible to padding "
+        "oracle attacks. A malicious actor could discern the difference between "
+        "plaintext with valid or invalid padding. Further, CBC mode does not include "
+        "any integrity checks. Use 'AES/GCM/NoPadding' instead.\n"
+        "    \n"
+        "The issue was detected in `tests/files/vulnerable.java`, line `28`, column "
+        "`44`, below is a code snippet from the vulnerable code\n"
         "```java\n"
         "Cipher cipher = Cipher.getInstance('AES/CBC/PKCS5Padding');\n"
-        "```\n"
-        "\n"
-        "The issue was identified as "
-        "`java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle` and the "
-        "message from the code analysis is `Using CBC with PKCS5Padding is "
-        "susceptible to padding oracle attacks. A malicious actor could discern the "
-        "difference between plaintext with valid or invalid padding. Further, CBC "
-        "mode does not include any integrity checks. Use 'AES/GCM/NoPadding' "
-        "instead.`."
+        "```"
     )
 
 
@@ -200,10 +205,19 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
         "integrity checks. Use 'AES/GCM/NoPadding' instead."
     )
 
-    assert [entry["url"] for entry in vuln["references"]] == [
-        "https://capec.mitre.org/data/definitions/463.html",
-        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
-        "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+    assert vuln["references"] == [
+        {
+            "title": "capec.mitre.org",
+            "url": "https://capec.mitre.org/data/definitions/463.html",
+        },
+        {
+            "title": "cheatsheetseries.owasp.org",
+            "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+        },
+        {
+            "title": "find-sec-bugs.github.io",
+            "url": "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+        },
     ]
     assert not any(
         [
@@ -217,19 +231,16 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
     assert vuln["security_issue"] is True
     assert (
         vuln["technical_detail"]
-        == "The file `/tmp/tmpza6g8qu0.java` has a security issue at line `28`, column "
-        "`44`:\n"
+        == "Cbc Padding Oracle: Using CBC with PKCS5Padding is susceptible to padding "
+        "oracle attacks. A malicious actor could discern the difference between "
+        "plaintext with valid or invalid padding. Further, CBC mode does not include "
+        "any integrity checks. Use 'AES/GCM/NoPadding' instead.\n"
+        "    \n"
+        "The issue was detected in `/tmp/tmpza6g8qu0.java`, line `28`, column `44`, "
+        "below is a code snippet from the vulnerable code\n"
         "```java\n"
         "Cipher cipher = Cipher.getInstance('AES/CBC/PKCS5Padding');\n"
-        "```\n"
-        "\n"
-        "The issue was identified as "
-        "`java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle` and the "
-        "message from the code analysis is `Using CBC with PKCS5Padding is "
-        "susceptible to padding oracle attacks. A malicious actor could discern the "
-        "difference between plaintext with valid or invalid padding. Further, CBC "
-        "mode does not include any integrity checks. Use 'AES/GCM/NoPadding' "
-        "instead.`."
+        "```"
     )
 
 
