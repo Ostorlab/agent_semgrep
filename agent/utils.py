@@ -42,13 +42,14 @@ def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
     path = path or vulnerability.get("path", "N/A")
     lines = vulnerability["extra"].get("lines", "").strip()
     technology = vulnerability["extra"].get("metadata", {}).get("technology", [""])[0]
+    title = construct_vulnerability_title(check_id)
 
-    technical_detail = f"""The file `{path}` has a security issue at line `{line}`, column `{col}`:
+    technical_detail = f"""{title}: {message}
+    
+The issue was detected in `{path}`, line `{line}`, column `{col}`, below is a code snippet from the vulnerable code
 ```{technology}
 {lines}
-```
-
-The issue was identified as `{check_id}` and the message from the code analysis is `{message}`."""
+```"""
 
     return technical_detail
 
