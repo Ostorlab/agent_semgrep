@@ -4,6 +4,7 @@ import mimetypes
 import os
 from typing import Any, Iterator
 
+from urllib import parse
 import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
@@ -89,8 +90,8 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
         impact = metadata.get("impact", "UNKNOWN")
         fix = extra.get("fix", "")
         references = {
-            f"Reference: #{idx + 1}": value
-            for (idx, value) in enumerate(metadata.get("references", []))
+            parse.urlparse(value).netloc or value: value
+            for value in metadata.get("references", [])
         }
 
         technical_detail = construct_technical_detail(vulnerability, path)

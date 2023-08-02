@@ -136,11 +136,19 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
         "valid or invalid padding. Further, CBC mode does not include any "
         "integrity checks. Use 'AES/GCM/NoPadding' instead."
     )
-
-    assert [entry["url"] for entry in vuln["references"]] == [
-        "https://capec.mitre.org/data/definitions/463.html",
-        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
-        "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+    assert vuln["references"] == [
+        {
+            "title": "capec.mitre.org",
+            "url": "https://capec.mitre.org/data/definitions/463.html",
+        },
+        {
+            "title": "cheatsheetseries.owasp.org",
+            "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+        },
+        {
+            "title": "find-sec-bugs.github.io",
+            "url": "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+        },
     ]
     assert not any(
         [
@@ -197,10 +205,19 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
         "integrity checks. Use 'AES/GCM/NoPadding' instead."
     )
 
-    assert [entry["url"] for entry in vuln["references"]] == [
-        "https://capec.mitre.org/data/definitions/463.html",
-        "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
-        "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+    assert vuln["references"] == [
+        {
+            "title": "capec.mitre.org",
+            "url": "https://capec.mitre.org/data/definitions/463.html",
+        },
+        {
+            "title": "cheatsheetseries.owasp.org",
+            "url": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+        },
+        {
+            "title": "find-sec-bugs.github.io",
+            "url": "https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY",
+        },
     ]
     assert not any(
         [
