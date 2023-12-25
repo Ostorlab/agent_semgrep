@@ -128,7 +128,7 @@ def testConstructVulnerabilityTitle_whenCheckIdIsNotAvailable_raisesException() 
 
 
 def testFilterDescription_caseRegexRedos_returnFilteredDescription() -> None:
-    """Unittest for filter_descirption:
+    """Unit test for filter description:
     case when regex ReDos description
     """
     description = (
