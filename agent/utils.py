@@ -4,8 +4,8 @@ import mimetypes
 import os
 import re
 from typing import Any, Iterator
-
 from urllib import parse
+
 import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
