@@ -129,7 +129,7 @@ def testConstructVulnerabilityTitle_whenCheckIdIsNotAvailable_raisesException() 
 
 def testFilterDescription_caseRegexRedos_returnFilteredDescription() -> None:
     """Unittest for filter_descirption:
-    case when regex Redos description
+    case when regex ReDos description
     """
     description = (
         "RegExp() called with a token function argument, this might allow an attacker to cause "
