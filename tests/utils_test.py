@@ -125,3 +125,28 @@ def testConstructVulnerabilityTitle_whenCheckIdIsNotAvailable_raisesException() 
 
     assert exception.typename == "ValueError"
     assert exception.value.args[0] == "Check ID is not defined"
+
+
+def testFilterDescription_caseRegexRedos_returnFilteredDescription() -> None:
+    """Unittest for filter_descirption:
+    case when regex Redos description
+    """
+    description = (
+        "RegExp() called with a token function argument, this might allow an attacker to cause "
+        "a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks "
+        "the main thread. For this reason, it is recommended to use hardcoded regexes instead. If "
+        "your regex is run on user-controlled input, consider performing input validation or use a "
+        "regex checking/sanitization library such as https://www.npmjs.com/package/recheck to verify "
+        "that the regex does not appear vulnerable to ReDoS."
+    )
+    filtered_description = utils.filter_description(description)
+
+    assert (
+        filtered_description
+        == "RegExp() called with a function argument, this might allow an attacker to cause a Regular "
+        "Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. "
+        "For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on "
+        "user-controlled input, consider performing input validation or use a regex checking/sanitization "
+        "library such as https://www.npmjs.com/package/recheck to verify that the regex does not appear "
+        "vulnerable to ReDoS."
+    )

@@ -2,6 +2,7 @@
 import dataclasses
 import mimetypes
 import os
+import re
 from typing import Any, Iterator
 
 from urllib import parse
@@ -69,6 +70,15 @@ def construct_vulnerability_title(check_id: str | None) -> str:
     return check_id.split(".")[-1].replace("-", " ").title()
 
 
+def filter_description(description: str) -> str:
+    description = re.sub(
+        r"RegExp\(\) called with a (.*) function argument",
+        "RegExp() called with a function argument",
+        description,
+    )
+    return description
+
+
 def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
@@ -84,7 +94,7 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
 
     for vulnerability in vulnerabilities:
         extra = vulnerability.get("extra", {})
-        description = extra.get("message", "")
+        description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))
         metadata = extra.get("metadata", {})
         impact = metadata.get("impact", "UNKNOWN")
