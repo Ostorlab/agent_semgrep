@@ -139,6 +139,7 @@ def testFilterDescription_caseRegexRedos_returnFilteredDescription() -> None:
         "regex checking/sanitization library such as https://www.npmjs.com/package/recheck to verify "
         "that the regex does not appear vulnerable to ReDoS."
     )
+
     filtered_description = utils.filter_description(description)
 
     assert (
