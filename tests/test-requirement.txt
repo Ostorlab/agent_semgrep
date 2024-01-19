@@ -1,6 +1,5 @@
 pytest
 pytest-mock
-black
-pylint
+ruff
 mypy
 typing-extensions
