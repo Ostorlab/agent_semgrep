@@ -94,7 +94,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             return
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
-            if path.endswith(".js") is True:
+            if path is not None and path.endswith(".js") is True:
                 # Beautify JavaScript source code to handle minified JS. By using Beautifier, we reduce false positive
                 # and produce better reports.
                 infile.write(
