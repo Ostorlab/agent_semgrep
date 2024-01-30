@@ -321,3 +321,23 @@ def testAgentSemgrep_whenAnalysisRunsWithCalledProcessError_doesNotEmitBackVulne
     test_agent.process(scan_message_file)
 
     assert len(agent_mock) == 0
+
+
+def testAgentSemgrep_whenAnalysisRunsOnJsFile_emitsBackVulnerability(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_js_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    """
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
+    )
+
+    test_agent.process(scan_message_js_file)
+
+    assert len(agent_mock) > 0

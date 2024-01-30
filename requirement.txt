@@ -2,3 +2,4 @@ ostorlab[agent]
 rich
 semgrep
 python-magic
+jsbeautifier
