@@ -3,6 +3,7 @@ import json
 import logging
 import subprocess
 import tempfile
+import jsbeautifier
 from typing import Any
 
 from ostorlab.agent.message import message as m
@@ -93,7 +94,14 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             return
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
-            infile.write(content)
+            if path.endswith(".js") is True:
+                # Beautify JavaScript source code to handle minified JS. By using Beautifier, we reduce false positive
+                # and produce better reports.
+                infile.write(
+                    jsbeautifier.beautify(content.decode(errors="ignore")).encode()
+                )
+            else:
+                infile.write(content)
             infile.flush()
 
             output = _run_analysis(infile.name)

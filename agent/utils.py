@@ -10,6 +10,8 @@ import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 
+LINE_SIZE_MAX = 5000
+
 RISK_RATING_MAPPING = {
     "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": agent_report_vulnerability_mixin.RiskRating.LOW,
@@ -42,7 +44,7 @@ def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
     col = vulnerability.get("start", {}).get("col", "N/A")
     message = vulnerability["extra"].get("message", "N/A")
     path = path or vulnerability.get("path", "N/A")
-    lines = vulnerability["extra"].get("lines", "").strip()
+    lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
     technology = vulnerability["extra"].get("metadata", {}).get("technology", [""])[0]
     title = construct_vulnerability_title(check_id)
 
