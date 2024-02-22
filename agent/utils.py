@@ -166,7 +166,7 @@ def _download_file(file_url: str) -> bytes | None:
     Returns:
         bytes: The content of the file.
     """
-    response = requests.get(file_url, timeout=DOWNLOAD_REQUEST_TIMEOUT)
+    response = requests.get(file_url, timeout=DOWNLOAD_REQUEST_TIMEOUT, verify=False)
     if response.status_code == 200 and isinstance(response.content, bytes) is True:
         return response.content
 
