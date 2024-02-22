@@ -167,7 +167,7 @@ def _download_file(file_url: str) -> bytes | None:
         bytes: The content of the file.
     """
     response = requests.get(file_url, timeout=DOWNLOAD_REQUEST_TIMEOUT)
-    if response.status_code == 200 and isinstance(response.content, bytes):
+    if response.status_code == 200 and isinstance(response.content, bytes) is True:
         return response.content
 
     return None
@@ -183,7 +183,7 @@ def get_file_content(message: m.Message) -> bytes | None:
         bytes: The content of the file.
     """
     content = message.data.get("content")
-    if content is not None and isinstance(content, bytes):
+    if isinstance(content, bytes) is True:
         return content
     content_url: str | None = message.data.get("content_url")
     if content_url is not None:
