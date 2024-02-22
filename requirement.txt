@@ -3,3 +3,4 @@ rich
 semgrep
 python-magic
 jsbeautifier
+tenacity
