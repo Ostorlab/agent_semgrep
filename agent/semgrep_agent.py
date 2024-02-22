@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 COMMAND_TIMEOUT = 120
 # Number of semgrep rules that can time out on a file before the file is skipped, 0 will have no limit.
 TIMEOUT_THRESHOLD = 0
+# 500MB
 FILE_SIZE_LIMIT = 500 * 1024 * 1024
+# 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 
 FILE_TYPE_BLACKLIST = (
@@ -64,13 +66,13 @@ def _run_analysis(
         "--config",
         "auto",
         "--timeout",
-        COMMAND_TIMEOUT,
+        str(COMMAND_TIMEOUT),
         "--timeout-threshold",
-        TIMEOUT_THRESHOLD,
+        str(TIMEOUT_THRESHOLD),
         "--max-target-bytes",
-        FILE_SIZE_LIMIT,
+        str(FILE_SIZE_LIMIT),
         "--max-memory",
-        max_memory_limit,
+        str(max_memory_limit),
         "--json",
         input_file_path,
     ]
@@ -102,7 +104,9 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """
         content = message.data.get("content")
         path = message.data.get("path")
-        memory_limit = self.args.get("memory_limit", DEFAULT_MEMORY_LIMIT)
+        memory_limit = (
+            self.args.get("memory_limit", DEFAULT_MEMORY_LIMIT) or DEFAULT_MEMORY_LIMIT
+        )
 
         if content is None:
             logger.error("Received empty file.")

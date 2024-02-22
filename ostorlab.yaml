@@ -56,4 +56,4 @@ docker_build_root : .
 args:
   - name: "memory_limit"
     description: "Memory limit for semgrep to use on a single file."
-    type: "int"
+    type: "number"
