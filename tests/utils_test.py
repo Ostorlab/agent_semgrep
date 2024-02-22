@@ -1,8 +1,10 @@
 """Unittests for Semgrep Agent Utilities"""
 from typing import Any
+import requests
 
 import pytest
-from ostorlab.agent.message import message
+import requests_mock as reqs_mock
+from ostorlab.agent.message import message as m
 
 from agent import utils
 
@@ -81,7 +83,7 @@ def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability(
 
 
 def testGetFileType_withPathProvided_returnsFileType(
-    scan_message_file: message.Message,
+    scan_message_file: m.Message,
 ) -> None:
     """Unittest for the file type extraction:
     case when the path is provided
@@ -94,7 +96,7 @@ def testGetFileType_withPathProvided_returnsFileType(
 
 
 def testGetFileType_withoutPathProvided_returnsFileType(
-    scan_message_file: message.Message,
+    scan_message_file: m.Message,
 ) -> None:
     """Unittest for the file type extraction:
     case when the path is not provided
@@ -151,3 +153,58 @@ def testFilterDescription_caseRegexRedos_returnFilteredDescription() -> None:
         "library such as https://www.npmjs.com/package/recheck to verify that the regex does not appear "
         "vulnerable to ReDoS."
     )
+
+
+def testGetFileContent_whenContentIsNotNone_returnTheContent() -> None:
+    """Test that the content is returned when it is not empty."""
+    message = m.Message.from_data(
+        selector="v3.asset.file.android.apk", data={"content": b"content"}
+    )
+
+    content = utils.get_file_content(message)
+
+    assert content == b"content"
+
+
+def testGetFileContent_whenContentIsEmpty_shouldTryToDownloadTheFile(
+    requests_mock: reqs_mock.mocker.Mocker,
+) -> None:
+    """Test that the file is downloaded when the content is empty."""
+    message = m.Message.from_data(
+        selector="v3.asset.file.android.apk",
+        data={"content_url": "https://example.com/legendary.apk"},
+    )
+    requests_mock.get(
+        "https://example.com/legendary.apk", content=b"downloaded_content"
+    )
+
+    content = utils.get_file_content(message)
+
+    assert content == b"downloaded_content"
+
+
+def testGetFileContent_whenContentUrlIsUnreacheable_shouldRetryThreeTimes(
+    requests_mock: reqs_mock.mocker.Mocker,
+) -> None:
+    """Test that the file download is retried three times."""
+    message = m.Message.from_data(
+        selector="v3.asset.file.android.apk",
+        data={"content_url": "https://example.com/legendary.apk"},
+    )
+    download_file_mock = requests_mock.get(
+        "https://example.com/legendary.apk", exc=requests.exceptions.ConnectionError
+    )
+
+    content = utils.get_file_content(message)
+
+    assert content is None
+    assert download_file_mock.call_count == 3
+
+
+def testGetFileContent_whenNoContentIsAvailable_shouldReturnNone() -> None:
+    """Test that None is returned when no content is available."""
+    message = m.Message.from_data(selector="v3.asset.file.android.apk", data={})
+
+    content = utils.get_file_content(message)
+
+    assert content is None

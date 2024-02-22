@@ -79,7 +79,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             message: A message containing the path and the content of the file to be processed
 
         """
-        content = message.data.get("content")
+        content = utils.get_file_content(message)
         path = message.data.get("path")
 
         if content is None:
