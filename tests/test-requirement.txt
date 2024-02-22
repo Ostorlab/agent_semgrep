@@ -1,5 +1,7 @@
 pytest
 pytest-mock
+requests_mock
+types-requests
 ruff
 mypy
 typing-extensions

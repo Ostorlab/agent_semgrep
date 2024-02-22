@@ -1,16 +1,24 @@
 """Utilities for Semgrep Agent"""
 import dataclasses
 import mimetypes
+import requests
+import logging
 import os
 import re
 from typing import Any, Iterator
 from urllib import parse
 
+
+import tenacity
 import magic
 from ostorlab.agent.kb import kb
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
+from ostorlab.agent.message import message as m
+
 
 LINE_SIZE_MAX = 5000
+DOWNLOAD_REQUEST_TIMEOUT = 60
+NUMBER_RETRIES = 3
 
 RISK_RATING_MAPPING = {
     "UNKNOWN": agent_report_vulnerability_mixin.RiskRating.POTENTIALLY,
@@ -18,6 +26,8 @@ RISK_RATING_MAPPING = {
     "MEDIUM": agent_report_vulnerability_mixin.RiskRating.MEDIUM,
     "HIGH": agent_report_vulnerability_mixin.RiskRating.HIGH,
 }
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -138,3 +148,49 @@ def get_file_type(content: bytes, path: str | None) -> str:
         if len(file_split) < 2:
             return get_file_type(content, None)
         return file_split
+
+
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(NUMBER_RETRIES),
+    retry=tenacity.retry_if_exception_type(requests.exceptions.RequestException),
+    retry_error_callback=lambda retry_state: retry_state.outcome.result()
+    if retry_state.outcome is not None
+    else None,
+)
+def _download_file(file_url: str) -> bytes | None:
+    """Download a file.
+
+    Args:
+        file_url : The URL of the file to download.
+
+    Returns:
+        bytes: The content of the file.
+    """
+    response = requests.get(file_url, timeout=DOWNLOAD_REQUEST_TIMEOUT)
+    if response.status_code == 200 and isinstance(response.content, bytes) is True:
+        return response.content
+
+    return None
+
+
+def get_file_content(message: m.Message) -> bytes | None:
+    """Get the file content from a message.
+
+    Args:
+        message : The message containing the file data.
+
+    Returns:
+        bytes: The content of the file.
+    """
+    content = message.data.get("content")
+    if isinstance(content, bytes) is True:
+        return content
+    content_url: str | None = message.data.get("content_url")
+    if content_url is not None:
+        try:
+            content = _download_file(content_url)
+        except requests.exceptions.RequestException as e:
+            logger.error("Could not download file %s. Error: %s.", content_url, e)
+        return content
+
+    return None
