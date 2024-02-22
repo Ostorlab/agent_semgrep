@@ -22,7 +22,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 90
+COMMAND_TIMEOUT = 120
+# Number of semgrep rules that can time out on a file before the file is skipped, 0 will have no limit.
+TIMEOUT_THRESHOLD = 0
+FILE_SIZE_LIMIT = 500 * 1024 * 1024
+DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 
 FILE_TYPE_BLACKLIST = (
     ".car",
@@ -51,8 +55,25 @@ FILE_TYPE_BLACKLIST = (
 )
 
 
-def _run_analysis(input_file_path: str) -> tuple[bytes, bytes] | None:
-    command = ["semgrep", "-q", "--config", "auto", "--json", input_file_path]
+def _run_analysis(
+    input_file_path: str, max_memory_limit: int = DEFAULT_MEMORY_LIMIT
+) -> tuple[bytes, bytes] | None:
+    command = [
+        "semgrep",
+        "-q",
+        "--config",
+        "auto",
+        "--timeout",
+        COMMAND_TIMEOUT,
+        "--timeout-threshold",
+        TIMEOUT_THRESHOLD,
+        "--max-target-bytes",
+        FILE_SIZE_LIMIT,
+        "--max-memory",
+        max_memory_limit,
+        "--json",
+        input_file_path,
+    ]
     try:
         output = subprocess.run(
             command, capture_output=True, check=True, timeout=COMMAND_TIMEOUT
@@ -81,6 +102,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """
         content = message.data.get("content")
         path = message.data.get("path")
+        memory_limit = self.args.get("memory_limit", DEFAULT_MEMORY_LIMIT)
 
         if content is None:
             logger.error("Received empty file.")
@@ -104,7 +126,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 infile.write(content)
             infile.flush()
 
-            output = _run_analysis(infile.name)
+            output = _run_analysis(infile.name, memory_limit)
 
             if output is None:
                 logger.error("Subprocess completed with errors.")
