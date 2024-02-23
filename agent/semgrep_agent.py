@@ -22,7 +22,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 120
+# 5min
+COMMAND_TIMEOUT = 300
 # Number of semgrep rules that can time out on a file before the file is skipped, 0 will have no limit.
 TIMEOUT_THRESHOLD = 0
 # 500MB
