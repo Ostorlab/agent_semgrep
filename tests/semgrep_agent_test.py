@@ -341,3 +341,31 @@ def testAgentSemgrep_whenAnalysisRunsOnJsFile_emitsBackVulnerability(
     test_agent.process(scan_message_js_file)
 
     assert len(agent_mock) > 0
+
+
+def testAgentSemgrep_whenValidMessage_constructCorrectCommand(
+    test_agent: semgrep_agent.SemgrepAgent,
+    scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unit test testing semgrep command construction."""
+    command_mock = mocker.patch(
+        "subprocess.run",
+        side_effect=subprocess.CalledProcessError(cmd="", returncode=2),
+    )
+
+    test_agent.process(scan_message_file)
+
+    assert command_mock.call_args.args[0][0] == "semgrep"
+    assert command_mock.call_args.args[0][1] == "-q"
+    assert command_mock.call_args.args[0][2] == "--config"
+    assert command_mock.call_args.args[0][3] == "auto"
+    assert command_mock.call_args.args[0][4] == "--timeout"
+    assert command_mock.call_args.args[0][5] == "120"
+    assert command_mock.call_args.args[0][6] == "--timeout-threshold"
+    assert command_mock.call_args.args[0][7] == "0"
+    assert command_mock.call_args.args[0][8] == "--max-target-bytes"
+    assert command_mock.call_args.args[0][9] == "524288000"
+    assert command_mock.call_args.args[0][10] == "--max-memory"
+    assert command_mock.call_args.args[0][11] == "2147483648"
+    assert command_mock.call_args.args[0][12] == "--json"
