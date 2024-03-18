@@ -1,4 +1,5 @@
 """Unittests for Semgrep agent."""
+
 import subprocess
 
 from ostorlab.agent.message import message

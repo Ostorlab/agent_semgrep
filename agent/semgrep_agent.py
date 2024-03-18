@@ -1,4 +1,5 @@
 """Ostorlab Agent implementation for Semgrep"""
+
 import json
 import logging
 import subprocess

@@ -1,4 +1,5 @@
 """conftest for semgrep agent tests"""
+
 import random
 import pathlib
 from typing import Any, cast
