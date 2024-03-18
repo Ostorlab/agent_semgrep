@@ -1,4 +1,5 @@
 """Utilities for Semgrep Agent"""
+
 import dataclasses
 import mimetypes
 import requests

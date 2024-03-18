@@ -11,35 +11,35 @@ _Semgrep is a fast, open-source, static analysis engine for finding bugs, detect
 ---
 
 
-This repository is an implementation of [Ostorlab Agent](https://pypi.org/project/ostorlab/) for [Semgrep](https://github.com/returntocorp/semgrep).
+This repository is an implementation of [OXO Agent](https://pypi.org/project/ostorlab/) for [Semgrep](https://github.com/returntocorp/semgrep).
 
 ## Getting Started
 To perform your first analysis, simply run the following command.
 ```shell
-ostorlab scan run --install --agent agent/ostorlab/semgrep file code.c
+oxo scan run --install --agent agent/ostorlab/semgrep file code.c
 ```
 
 This command will download and install `agent/ostorlab/semgrep` and analyze the source file `code.c`.
-For more information, please refer to the [Ostorlab Documentation](https://github.com/Ostorlab/ostorlab/blob/main/README.md)
+For more information, please refer to the [OXO Documentation](https://oxo.ostorlab.co/docs)
 
 
 ## Usage
 
-Agent Semgrep can be installed directly from the ostorlab agent store or built from this repository.
+Agent Semgrep can be installed directly from the oxo agent store or built from this repository.
 
- ### Install directly from ostorlab agent store
+ ### Install directly from oxo agent store
 
  ```shell
- ostorlab agent install agent/ostorlab/semgrep
+ oxo agent install agent/ostorlab/semgrep
  ```
 
 You can then run the agent with the following command:
-`ostorlab scan run --install --agent agent/ostorlab/semgrep file code.c`
+`oxo scan run --install --agent agent/ostorlab/semgrep file code.c`
 
 
 ### Build directly from the repository
 
- 1. To build the semgrep agent you need to have [ostorlab](https://pypi.org/project/ostorlab/) installed in your machine. If you have already installed ostorlab, you can skip this step.
+ 1. To build the semgrep agent you need to have [oxo](https://pypi.org/project/ostorlab/) installed in your machine. If you have already installed oxo, you can skip this step.
 
 ```shell
 pip3 install ostorlab
@@ -51,21 +51,21 @@ pip3 install ostorlab
 git clone https://github.com/Ostorlab/agent_semgrep.git && cd agent_semgrep
 ```
 
- 3. Build the agent image using ostorlab cli.
+ 3. Build the agent image using oxo cli.
 
  ```shell
- ostorlab agent build --file=ostorlab.yaml
+ oxo agent build --file=ostorlab.yaml
  ```
  You can pass the optional flag `--organization` to specify your organisation. The organization is empty by default.
 
  4. Run the agent using on of the following commands:
 	 * If you did not specify an organization when building the image:
 	  ```shell
-	  ostorlab scan run --agent agent//semgrep file code.c
+	  oxo scan run --agent agent//semgrep file code.c
 	  ```
 	 * If you specified an organization when building the image:
 	  ```shell
-	  ostorlab scan run --agent agent/[ORGANIZATION]/semgrep file code.c
+	  oxo scan run --agent agent/[ORGANIZATION]/semgrep file code.c
 	  ```
 
 

@@ -1,4 +1,5 @@
 """Unittests for Semgrep Agent Utilities"""
+
 from typing import Any
 import requests
 
