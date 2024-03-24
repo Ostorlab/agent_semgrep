@@ -55,6 +55,7 @@ FILE_TYPE_BLACKLIST = (
     ".woff",
     ".woff2",
     ".zip",
+    ".xml",
 )
 
 
