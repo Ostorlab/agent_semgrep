@@ -117,7 +117,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         logger.info("Analyzing file `%s` with type `%s`.", path, file_type)
 
         if file_type in FILE_TYPE_BLACKLIST:
-            logger.info("File type is blacklisted.")
+            logger.debug("File type is blacklisted.")
             return
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
@@ -143,7 +143,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 json_output = json.loads(stdout)
                 json_output["path"] = path
                 self._emit_results(json_output)
-                logger.info("Semgrep completed without errors.")
+                logger.debug("Semgrep completed without errors.")
             else:
                 logger.error("Semgrep completed with errors %s", stderr)
 
