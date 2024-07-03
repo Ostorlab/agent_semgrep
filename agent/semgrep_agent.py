@@ -96,7 +96,9 @@ def _run_analysis(
 
 
 def _is_text_file(content: str | bytes) -> bool:
-    return all(c in string.printable for c in content[:1024]) is True
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="ignore")
+    return all(c in string.printable for c in content[:1024])
 
 
 class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
