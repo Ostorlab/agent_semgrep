@@ -2,7 +2,6 @@
 
 import json
 import logging
-import string
 import subprocess
 import tempfile
 from typing import Any
@@ -95,12 +94,6 @@ def _run_analysis(
     return (output.stdout, output.stderr)
 
 
-def _is_text_file(content: str | bytes) -> bool:
-    if isinstance(content, bytes):
-        content = content.decode("utf-8", errors="ignore")
-    return all(c in string.printable for c in content[:1024])
-
-
 class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
     """Semgrep agent."""
 
@@ -128,17 +121,18 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             logger.debug("File type is blacklisted.")
             return
 
-        if _is_text_file(content) is False:
-            logger.debug("File is not in text format %s.", path, file_type)
-            return
-
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
             if path is not None and path.endswith(".js") is True:
                 # Beautify JavaScript source code to handle minified JS. By using Beautifier, we reduce false positive
                 # and produce better reports.
-                infile.write(
-                    jsbeautifier.beautify(content.decode(errors="ignore")).encode()
-                )
+                try:
+                    infile.write(
+                        jsbeautifier.beautify(content.decode(errors="ignore")).encode()
+                    )
+                except AttributeError as e:
+                    logger.warning(
+                        "Error occurred %s while formatting file %s.", e, path
+                    )
             else:
                 infile.write(content)
             infile.flush()
