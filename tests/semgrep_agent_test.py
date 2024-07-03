@@ -344,6 +344,26 @@ def testAgentSemgrep_whenAnalysisRunsOnJsFile_emitsBackVulnerability(
     assert len(agent_mock) > 0
 
 
+def testAgentSemgrep_whenAnalysisRunsOnCompressedJsFile_emitsNoVulnerability(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    scan_message_compressed_js_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unittest for the full life cycle of the agent:
+    case where the semgrep analysis runs with a compressed js file shouldn't yield vulnerabilities.
+    """
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
+    )
+
+    test_agent.process(scan_message_compressed_js_file)
+
+    assert len(agent_mock) == 0
+
+
 def testAgentSemgrep_whenValidMessage_constructCorrectCommand(
     test_agent: semgrep_agent.SemgrepAgent,
     scan_message_file: message.Message,

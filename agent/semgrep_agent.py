@@ -2,14 +2,15 @@
 
 import json
 import logging
+import string
 import subprocess
 import tempfile
-import jsbeautifier
 from typing import Any
 
+import jsbeautifier
+from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.agent import agent
 from rich import logging as rich_logging
 
 from agent import utils
@@ -94,6 +95,10 @@ def _run_analysis(
     return (output.stdout, output.stderr)
 
 
+def _is_text_file(content: str | bytes) -> bool:
+    return all(c in string.printable for c in content[:1024]) is True
+
+
 class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
     """Semgrep agent."""
 
@@ -119,6 +124,10 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
 
         if file_type in FILE_TYPE_BLACKLIST:
             logger.debug("File type is blacklisted.")
+            return
+
+        if _is_text_file(content.decode(errors="ignore")) is False:
+            logger.debug("File is not in text format %s.", path, file_type)
             return
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
