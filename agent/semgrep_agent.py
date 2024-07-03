@@ -133,6 +133,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                     logger.warning(
                         "Error occurred %s while formatting file %s.", e, path
                     )
+                    return
             else:
                 infile.write(content)
             infile.flush()
