@@ -128,7 +128,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             logger.debug("File type is blacklisted.")
             return
 
-        if _is_text_file(content.decode(errors="ignore")) is False:
+        if _is_text_file(content) is False:
             logger.debug("File is not in text format %s.", path, file_type)
             return
 
