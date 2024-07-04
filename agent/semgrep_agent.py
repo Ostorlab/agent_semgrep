@@ -4,12 +4,12 @@ import json
 import logging
 import subprocess
 import tempfile
-import jsbeautifier
 from typing import Any
 
+import jsbeautifier
+from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.agent import agent
 from rich import logging as rich_logging
 
 from agent import utils
@@ -125,9 +125,15 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             if path is not None and path.endswith(".js") is True:
                 # Beautify JavaScript source code to handle minified JS. By using Beautifier, we reduce false positive
                 # and produce better reports.
-                infile.write(
-                    jsbeautifier.beautify(content.decode(errors="ignore")).encode()
-                )
+                try:
+                    infile.write(
+                        jsbeautifier.beautify(content.decode(errors="ignore")).encode()
+                    )
+                except AttributeError as e:
+                    logger.warning(
+                        "Error occurred %s while formatting file %s.", e, path
+                    )
+                    return
             else:
                 infile.write(content)
             infile.flush()
