@@ -1,6 +1,6 @@
 kind: Agent
 name: semgrep
-version: 1.0.2
+version: 1.0.3
 description: |
   This repository is an implementation of [OXO Agent](https://pypi.org/project/ostorlab/) for [Semgrep](https://github.com/returntocorp/semgrep) by r2c.
   ## Getting Started
