@@ -174,6 +174,12 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
         "Cipher cipher = Cipher.getInstance('AES/CBC/PKCS5Padding');\n"
         "```"
     )
+    assert vuln["vulnerability_location"] is not None
+    assert vuln["vulnerability_location"]["metadata"][0]["type"] == "FILE_PATH"
+    assert (
+        vuln["vulnerability_location"]["metadata"][0]["value"]
+        == "tests/files/vulnerable.java"
+    )
 
 
 def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(

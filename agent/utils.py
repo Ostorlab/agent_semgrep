@@ -38,6 +38,9 @@ class Vulnerability:
     entry: kb.Entry
     technical_detail: str
     risk_rating: agent_report_vulnerability_mixin.RiskRating
+    vulnerability_location: (
+        agent_report_vulnerability_mixin.VulnerabilityLocation | None
+    ) = None
 
 
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
@@ -118,6 +121,17 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
         }
 
         technical_detail = construct_technical_detail(vulnerability, path)
+        path = path or vulnerability.get("path")
+        vulnerability_location = None
+        if path is not None:
+            vulnerability_location = agent_report_vulnerability_mixin.VulnerabilityLocation(
+                metadata=[
+                    agent_report_vulnerability_mixin.VulnerabilityLocationMetadata(
+                        metadata_type=agent_report_vulnerability_mixin.MetadataType.FILE_PATH,
+                        value=path,
+                    )
+                ]
+            )
 
         yield Vulnerability(
             entry=kb.Entry(
@@ -136,6 +150,7 @@ def parse_results(json_output: dict[str, Any]) -> Iterator[Vulnerability]:
             ),
             technical_detail=technical_detail,
             risk_rating=RISK_RATING_MAPPING[impact],
+            vulnerability_location=vulnerability_location,
         )
 
 
