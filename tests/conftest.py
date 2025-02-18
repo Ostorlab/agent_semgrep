@@ -80,7 +80,11 @@ def scan_message_file() -> message.Message:
     selector = "v3.asset.file"
     path = "tests/files/vulnerable.java"
     with open(path, "rb") as infile:
-        msg_data = {"content": infile.read(), "path": path}
+        msg_data = {
+            "content": infile.read(),
+            "path": path,
+            "android_metadata": {"package_name": "a.b.c"},
+        }
     return message.Message.from_data(selector, data=msg_data)
 
 

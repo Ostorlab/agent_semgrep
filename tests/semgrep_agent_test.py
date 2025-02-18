@@ -180,6 +180,8 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
         vuln["vulnerability_location"]["metadata"][0]["value"]
         == "tests/files/vulnerable.java"
     )
+    assert vuln["vulnerability_location"]["android_store"] is not None
+    assert vuln["vulnerability_location"]["android_store"]["package_name"] == "a.b.c"
 
 
 def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(
