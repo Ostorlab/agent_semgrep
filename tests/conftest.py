@@ -89,6 +89,20 @@ def scan_message_file() -> message.Message:
 
 
 @pytest.fixture
+def ios_scan_message_file() -> message.Message:
+    """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
+    selector = "v3.asset.file"
+    path = "tests/files/vulnerable.java"
+    with open(path, "rb") as infile:
+        msg_data = {
+            "content": infile.read(),
+            "path": path,
+            "ios_metadata": {"bundle_id": "a.b.c"},
+        }
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
 def scan_message_js_file() -> message.Message:
     """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
