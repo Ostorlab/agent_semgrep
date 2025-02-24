@@ -1,4 +1,4 @@
-"""Unittests for Semgrep Agent Utilities"""
+"""Unittests for Opengrep Agent Utilities"""
 
 from typing import Any
 import requests
@@ -37,13 +37,13 @@ def testConstructTechnicalDetail_allDetailsProvided_returnsTechnicalDetail(
 
 
 def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
-    semgrep_json_output: dict[str, Any],
+    opengrep_json_output: dict[str, Any],
     vulnerabilities: list[dict[str, Any]],
 ) -> None:
     """Unittest for the results parser:
     case when vulnerabilities are found
     """
-    for idx, vulnerability in enumerate(utils.parse_results(semgrep_json_output)):
+    for idx, vulnerability in enumerate(utils.parse_results(opengrep_json_output)):
         vuln = vulnerability.entry
         assert vuln.title == "Cbc Padding Oracle"
         assert vuln.risk_rating == "MEDIUM"
@@ -73,14 +73,14 @@ def testParseResults_whenVulnerabilitiesAreFound_returnsVulnerability(
 
 
 def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability(
-    semgrep_json_output: dict[str, Any],
+    opengrep_json_output: dict[str, Any],
 ) -> None:
     """Unittest for the results parser:
     case when no vulnerabilities are found
     """
-    semgrep_json_output["results"] = []
+    opengrep_json_output["results"] = []
 
-    assert next(utils.parse_results(semgrep_json_output), None) is None
+    assert next(utils.parse_results(opengrep_json_output), None) is None
 
 
 def testGetFileType_withPathProvided_returnsFileType(

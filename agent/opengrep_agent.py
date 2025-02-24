@@ -1,4 +1,4 @@
-"""Ostorlab Agent implementation for Semgrep"""
+"""Ostorlab Agent implementation for Opengrep"""
 
 import json
 import logging
@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 COMMAND_TIMEOUT = 120
-# Number of semgrep rules that can time out on a file before the file is skipped, 0 will have no limit.
+# Number of Opengrep rules that can time out on a file before the file is skipped, 0 will have no limit.
 TIMEOUT_THRESHOLD = 0
 # 500MB
 FILE_SIZE_LIMIT = 500 * 1024 * 1024
@@ -63,7 +63,9 @@ def _run_analysis(
     input_file_path: str, max_memory_limit: int = DEFAULT_MEMORY_LIMIT
 ) -> tuple[bytes, bytes] | None:
     command = [
-        "semgrep",
+        "opengrep",
+        "--metrics",
+        "auto",
         "-q",
         "--config",
         "auto",
@@ -94,11 +96,11 @@ def _run_analysis(
     return (output.stdout, output.stderr)
 
 
-class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
-    """Semgrep agent."""
+class OpengrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVulnMixin):
+    """Opengrep agent."""
 
     def process(self, message: m.Message) -> None:
-        """Trigger Semgrep analysis and emit found vulnerabilities
+        """Trigger Opengrep analysis and emit found vulnerabilities
 
         Args:
             message: A message containing the path and the content of the file to be processed
@@ -156,9 +158,9 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                     package_name=package_name,
                     bundle_id=bundle_id,
                 )
-                logger.debug("Semgrep completed without errors.")
+                logger.debug("Opengrep completed without errors.")
             else:
-                logger.error("Semgrep completed with errors %s", stderr)
+                logger.error("Opengrep completed with errors %s", stderr)
 
     def _emit_results(
         self,
@@ -181,4 +183,4 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
 
 if __name__ == "__main__":
     logger.info("Starting Agent ...")
-    SemgrepAgent.main()
+    OpengrepAgent.main()

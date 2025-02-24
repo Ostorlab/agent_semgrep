@@ -1,11 +1,11 @@
-"""Unittests for Semgrep agent."""
+"""Unittests for Opengrep agent."""
 
 import subprocess
 
 from ostorlab.agent.message import message
 from pytest_mock import plugin
 
-from agent import semgrep_agent
+from agent import opengrep_agent
 
 JSON_OUTPUT = b"""
 {
@@ -109,18 +109,18 @@ One of these properties is missing: 'rules'
 EMPTY_ERROR_MESSAGE = b""
 
 
-def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without errors and yields vulnerabilities.
+    case where the opengrep analysis runs without errors and yields vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
     )
 
@@ -184,18 +184,18 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     assert vuln["vulnerability_location"]["android_store"]["package_name"] == "a.b.c"
 
 
-def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    case where the opengrep analysis runs without a path provided and without errors and yields vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
     )
 
@@ -253,18 +253,18 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
     )
 
 
-def testAgentSemgrep_whenAnalysisRunsWithoutErrors_doesNotEmitBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsWithoutErrors_doesNotEmitBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without errors and does not yield vulnerabilities.
+    case where the opengrep analysis runs without errors and does not yield vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(EMPTY_JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
     )
 
@@ -273,18 +273,18 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_doesNotEmitBackVulnerability(
     assert len(agent_mock) == 0
 
 
-def testAgentSemgrep_whenAnalysisRunsWithErrors_doesNotEmitBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsWithErrors_doesNotEmitBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without errors and does not yield vulnerabilities.
+    case where the opengrep analysis runs without errors and does not yield vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(EMPTY_JSON_OUTPUT, ERROR_MESSAGE),
     )
 
@@ -293,8 +293,8 @@ def testAgentSemgrep_whenAnalysisRunsWithErrors_doesNotEmitBackVulnerability(
     assert len(agent_mock) == 0
 
 
-def testAgentSemgrep_whenAnalysisRunsWithTimeout_doesNotEmitBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsWithTimeout_doesNotEmitBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
@@ -312,8 +312,8 @@ def testAgentSemgrep_whenAnalysisRunsWithTimeout_doesNotEmitBackVulnerability(
     assert len(agent_mock) == 0
 
 
-def testAgentSemgrep_whenAnalysisRunsWithCalledProcessError_doesNotEmitBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsWithCalledProcessError_doesNotEmitBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_file: message.Message,
@@ -332,18 +332,18 @@ def testAgentSemgrep_whenAnalysisRunsWithCalledProcessError_doesNotEmitBackVulne
     assert len(agent_mock) == 0
 
 
-def testAgentSemgrep_whenAnalysisRunsOnJsFile_emitsBackVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsOnJsFile_emitsBackVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_js_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs without a path provided and without errors and yields vulnerabilities.
+    case where the opengrep analysis runs without a path provided and without errors and yields vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
     )
 
@@ -352,18 +352,18 @@ def testAgentSemgrep_whenAnalysisRunsOnJsFile_emitsBackVulnerability(
     assert len(agent_mock) > 0
 
 
-def testAgentSemgrep_whenAnalysisRunsOnCompressedJsFile_emitsNoVulnerability(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenAnalysisRunsOnCompressedJsFile_emitsNoVulnerability(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     scan_message_compressed_js_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unittest for the full life cycle of the agent:
-    case where the semgrep analysis runs with a compressed js file shouldn't yield vulnerabilities.
+    case where the opengrep analysis runs with a compressed js file shouldn't yield vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
     )
 
@@ -372,12 +372,12 @@ def testAgentSemgrep_whenAnalysisRunsOnCompressedJsFile_emitsNoVulnerability(
     assert len(agent_mock) == 0
 
 
-def testAgentSemgrep_whenValidMessage_constructCorrectCommand(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenValidMessage_constructCorrectCommand(
+    test_agent: opengrep_agent.OpengrepAgent,
     scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """Unit test testing semgrep command construction."""
+    """Unit test testing opengrep command construction."""
     command_mock = mocker.patch(
         "subprocess.run",
         side_effect=subprocess.CalledProcessError(cmd="", returncode=2),
@@ -385,33 +385,35 @@ def testAgentSemgrep_whenValidMessage_constructCorrectCommand(
 
     test_agent.process(scan_message_file)
 
-    assert command_mock.call_args.args[0][0] == "semgrep"
-    assert command_mock.call_args.args[0][1] == "-q"
-    assert command_mock.call_args.args[0][2] == "--config"
-    assert command_mock.call_args.args[0][3] == "auto"
-    assert command_mock.call_args.args[0][4] == "--timeout"
-    assert command_mock.call_args.args[0][5] == "120"
-    assert command_mock.call_args.args[0][6] == "--timeout-threshold"
-    assert command_mock.call_args.args[0][7] == "0"
-    assert command_mock.call_args.args[0][8] == "--max-target-bytes"
-    assert command_mock.call_args.args[0][9] == "524288000"
-    assert command_mock.call_args.args[0][10] == "--max-memory"
-    assert command_mock.call_args.args[0][11] == "2147483648"
-    assert command_mock.call_args.args[0][12] == "--json"
+    assert command_mock.call_args.args[0][0] == "opengrep"
+    assert command_mock.call_args.args[0][1] == "--metrics"
+    assert command_mock.call_args.args[0][2] == "auto"
+    assert command_mock.call_args.args[0][3] == "-q"
+    assert command_mock.call_args.args[0][4] == "--config"
+    assert command_mock.call_args.args[0][5] == "auto"
+    assert command_mock.call_args.args[0][6] == "--timeout"
+    assert command_mock.call_args.args[0][7] == "120"
+    assert command_mock.call_args.args[0][8] == "--timeout-threshold"
+    assert command_mock.call_args.args[0][9] == "0"
+    assert command_mock.call_args.args[0][10] == "--max-target-bytes"
+    assert command_mock.call_args.args[0][11] == "524288000"
+    assert command_mock.call_args.args[0][12] == "--max-memory"
+    assert command_mock.call_args.args[0][13] == "2147483648"
+    assert command_mock.call_args.args[0][14] == "--json"
 
 
-def testAgentSemgrep_whenIosAsset_addsIosAssetToVulnLocation(
-    test_agent: semgrep_agent.SemgrepAgent,
+def testAgentOpengrep_whenIosAsset_addsIosAssetToVulnLocation(
+    test_agent: opengrep_agent.OpengrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     ios_scan_message_file: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Unit test for the full life cycle of the agent:
-    case where the semgrep analysis runs without errors and yields vulnerabilities.
+    case where the opengrep analysis runs without errors and yields vulnerabilities.
     """
     mocker.patch(
-        "agent.semgrep_agent._run_analysis",
+        "agent.opengrep_agent._run_analysis",
         return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
     )
 
