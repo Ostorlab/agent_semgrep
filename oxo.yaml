@@ -1,5 +1,5 @@
 kind: Agent
-name: opengrep
+name: semgrep #TODO: change the name of the agent to Opengrep.
 version: 1.0.4
 description: |
   This repository is an implementation of [OXO Agent](https://pypi.org/project/ostorlab/) for [Opengrep](https://github.com/opengrep/opengrep) by r2c.
