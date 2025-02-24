@@ -16,10 +16,10 @@ This repository is an implementation of [OXO Agent](https://pypi.org/project/ost
 ## Getting Started
 To perform your first analysis, simply run the following command.
 ```shell
-oxo scan run --install --agent agent/ostorlab/opengrep file code.c
+oxo scan run --install --agent agent/ostorlab/semgrep file code.c
 ```
 
-This command will download and install `agent/ostorlab/opengrep` and analyze the source file `code.c`.
+This command will download and install `agent/ostorlab/semgrep` and analyze the source file `code.c`.
 For more information, please refer to the [OXO Documentation](https://oxo.ostorlab.co/docs)
 
 
@@ -30,11 +30,11 @@ Agent Opengrep can be installed directly from the oxo agent store or built from 
  ### Install directly from oxo agent store
 
  ```shell
- oxo agent install agent/ostorlab/opengrep
+ oxo agent install agent/ostorlab/semgrep
  ```
 
 You can then run the agent with the following command:
-`oxo scan run --install --agent agent/ostorlab/opengrep file code.c`
+`oxo scan run --install --agent agent/ostorlab/semgrep file code.c`
 
 
 ### Build directly from the repository
@@ -48,7 +48,7 @@ pip3 install ostorlab
  2. Clone this repository.
 
 ```shell
-git clone https://github.com/Ostorlab/agent_opengrep.git && cd agent_opengrep
+git clone https://github.com/Ostorlab/agent_semgrep.git && cd agent_semgrep
 ```
 
  3. Build the agent image using oxo cli.
@@ -61,11 +61,11 @@ git clone https://github.com/Ostorlab/agent_opengrep.git && cd agent_opengrep
  4. Run the agent using on of the following commands:
 	 * If you did not specify an organization when building the image:
 	  ```shell
-	  oxo scan run --agent agent//opengrep file code.c
+	  oxo scan run --agent agent//semgrep file code.c
 	  ```
 	 * If you specified an organization when building the image:
 	  ```shell
-	  oxo scan run --agent agent/[ORGANIZATION]/opengrep file code.c
+	  oxo scan run --agent agent/[ORGANIZATION]/semgrep file code.c
 	  ```
 
 
