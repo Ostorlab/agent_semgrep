@@ -122,7 +122,7 @@ def _sort_dict(dictionary: dict[str, Any] | list[Any]) -> dict[str, Any] | list[
 def _compute_vulnerability_dna(
     title: str,
     technical_detail: str,
-    vulnerability_location: vulnerability_mixin.VulnerabilityLocation,
+    vulnerability_location: vulnerability_mixin.VulnerabilityLocation | None,
 ) -> str:
     """Compute a deterministic, debuggable DNA representation for a vulnerability.
     Args:
