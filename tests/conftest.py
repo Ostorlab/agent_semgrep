@@ -1,4 +1,4 @@
-"""conftest for semgrep agent tests"""
+"""conftest for Opengrep agent tests"""
 
 import random
 import pathlib
@@ -9,7 +9,7 @@ from ostorlab.agent.message import message
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.runtimes import definitions as runtime_definitions
 
-from agent import semgrep_agent
+from agent import opengrep_agent
 
 JSON_OUTPUT = {
     "errors": [],
@@ -125,18 +125,18 @@ def scan_message_compressed_js_file() -> message.Message:
 @pytest.fixture()
 def test_agent(
     agent_persist_mock: dict[str | bytes, str | bytes],
-) -> semgrep_agent.SemgrepAgent:
-    with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
+) -> opengrep_agent.OpengrepAgent:
+    with (pathlib.Path(__file__).parent.parent / "oxo.yaml").open() as yaml_o:
         definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
         settings = runtime_definitions.AgentSettings(
-            key="agent/ostorlab/semgrep",
+            key="agent/ostorlab/opengrep",
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[],
             healthcheck_port=random.randint(5000, 6000),
             redis_url="redis://guest:guest@localhost:6379",
         )
-        return semgrep_agent.SemgrepAgent(definition, settings)
+        return opengrep_agent.OpengrepAgent(definition, settings)
 
 
 @pytest.fixture()
@@ -147,5 +147,5 @@ def vulnerabilities() -> list[dict[str, Any]]:
 
 
 @pytest.fixture()
-def semgrep_json_output() -> dict[str, Any]:
+def opengrep_json_output() -> dict[str, Any]:
     return JSON_OUTPUT
