@@ -1,6 +1,6 @@
 kind: Agent
 name: opengrep
-version: 1.0.4
+version: 1.0.0
 description: |
   This repository is an implementation of [OXO Agent](https://pypi.org/project/ostorlab/) for [Opengrep](https://github.com/opengrep/opengrep) by r2c.
   ## Getting Started
