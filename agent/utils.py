@@ -1,4 +1,4 @@
-"""Utilities for Semgrep Agent"""
+"""Utilities for Opengrep Agent"""
 
 import dataclasses
 import mimetypes
@@ -47,10 +47,10 @@ class Vulnerability:
 
 
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
-    """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
+    """Constructs a technical detail paragraph from a Opengrep vulnerability json output.
 
     Args:
-        vulnerability: Semgrep json output of a given vulnerability.
+        vulnerability: Opengrep json output of a given vulnerability.
         path: Analyzed file path
 
     Returns:
@@ -76,10 +76,10 @@ The issue was detected in `{path}`, line `{line}`, column `{col}`, below is a co
 
 
 def construct_vulnerability_title(check_id: str | None) -> str:
-    """Constructs a vulnerability title from Semgrep vulnerability check id.
+    """Constructs a vulnerability title from Opengrep vulnerability check id.
 
     Args:
-        check_id: Semgrep vulnerability check id.
+        check_id: Opengrep vulnerability check id.
 
     Returns:
         vulnerability title.
@@ -126,10 +126,10 @@ def parse_results(
     package_name: str | None = None,
     bundle_id: str | None = None,
 ) -> Iterator[Vulnerability]:
-    """Parses JSON generated Semgrep results and yield vulnerability entries.
+    """Parses JSON generated Opengrep results and yield vulnerability entries.
 
     Args:
-        json_output: Semgrep json output.
+        json_output: Opengrep json output.
         package_name: optional application package name to augment the vulnerability location.
         bundle_id: optional bundle identifier to augment the vulnerability location.
 
