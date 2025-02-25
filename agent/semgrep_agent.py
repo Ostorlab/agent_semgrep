@@ -176,6 +176,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 technical_detail=vuln.technical_detail,
                 risk_rating=vuln.risk_rating,
                 vulnerability_location=vuln.vulnerability_location,
+                dna=vuln.vuln_dna,
             )
 
 
