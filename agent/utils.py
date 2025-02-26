@@ -8,6 +8,7 @@ import os
 import re
 from typing import Any, Iterator
 from urllib import parse
+import json
 
 
 import tenacity
@@ -43,6 +44,7 @@ class Vulnerability:
     entry: kb.Entry
     technical_detail: str
     risk_rating: vulnerability_mixin.RiskRating
+    vuln_dna: str
     vulnerability_location: vulnerability_mixin.VulnerabilityLocation | None = None
 
 
@@ -96,6 +98,51 @@ def filter_description(description: str) -> str:
         description,
     )
     return description
+
+
+def _sort_dict(dictionary: dict[str, Any] | list[Any]) -> dict[str, Any] | list[Any]:
+    """Recursively sort dictionary keys and lists within.
+    Args:
+        dictionary: The dictionary to sort.
+    Returns:
+        A sorted dictionary or list.
+    """
+    if isinstance(dictionary, dict):
+        return {k: _sort_dict(v) for k, v in sorted(dictionary.items())}
+    if isinstance(dictionary, list):
+        return sorted(
+            dictionary,
+            key=lambda x: json.dumps(x, sort_keys=True)
+            if isinstance(x, dict)
+            else str(x),
+        )
+    return dictionary
+
+
+def _compute_vulnerability_dna(
+    title: str,
+    lines: str,
+    vulnerability_location: vulnerability_mixin.VulnerabilityLocation | None,
+) -> str:
+    """Compute a deterministic, debuggable DNA representation for a vulnerability.
+    Args:
+        title: Generate KB title.
+        lines: the lines where the vulnerability was detected.
+        vulnerability_location: the computed vulnerability location.
+    Returns:
+        A deterministic JSON representation of the vulnerability DNA.
+    """
+    dna_data: dict[str, Any] = {
+        "title": title,
+        "lines": lines,
+    }
+
+    if vulnerability_location is not None:
+        location_dict: dict[str, Any] = vulnerability_location.to_dict()
+        sorted_location_dict = _sort_dict(location_dict)
+        dna_data["location"] = sorted_location_dict
+
+    return json.dumps(dna_data, sort_keys=True)
 
 
 def _prepare_vulnerability_location(
@@ -159,6 +206,7 @@ def parse_results(
             vulnerability_location = _prepare_vulnerability_location(
                 file_path=path, package_name=package_name, bundle_id=bundle_id
             )
+        lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
 
         yield Vulnerability(
             entry=kb.Entry(
@@ -178,6 +226,7 @@ def parse_results(
             technical_detail=technical_detail,
             risk_rating=RISK_RATING_MAPPING[impact],
             vulnerability_location=vulnerability_location,
+            vuln_dna=_compute_vulnerability_dna(title, lines, vulnerability_location),
         )
 
 

@@ -182,6 +182,11 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     )
     assert vuln["vulnerability_location"]["android_store"] is not None
     assert vuln["vulnerability_location"]["android_store"]["package_name"] == "a.b.c"
+    assert vuln["dna"] == (
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"android_store": '
+        '{"package_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
+        '"title": "Cbc Padding Oracle"}'
+    )
 
 
 def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerability(
@@ -250,6 +255,11 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
         "```java\n"
         "Cipher cipher = Cipher.getInstance('AES/CBC/PKCS5Padding');\n"
         "```"
+    )
+    assert vuln["dna"] == (
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"android_store":'
+        ' {"package_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "/tmp/tmpza6g8qu0.java"}]}, "tit'
+        'le": "Cbc Padding Oracle"}'
     )
 
 
@@ -430,3 +440,8 @@ def testAgentSemgrep_whenIosAsset_addsIosAssetToVulnLocation(
     )
     assert vuln["vulnerability_location"]["ios_store"] is not None
     assert vuln["vulnerability_location"]["ios_store"]["bundle_id"] == "a.b.c"
+    assert vuln["dna"] == (
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"ios_store": '
+        '{"bundle_id": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
+        '"title": "Cbc Padding Oracle"}'
+    )
