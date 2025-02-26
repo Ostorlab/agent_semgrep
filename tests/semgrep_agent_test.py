@@ -183,14 +183,9 @@ def testAgentSemgrep_whenAnalysisRunsWithoutErrors_emitsBackVulnerability(
     assert vuln["vulnerability_location"]["android_store"] is not None
     assert vuln["vulnerability_location"]["android_store"]["package_name"] == "a.b.c"
     assert vuln["dna"] == (
-        '{"location": {"android_store": {"package_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH'
-        '", "value": "tests/files/vulnerable.java"}]}, "technical_detail": "Cbc Padding Oracle: Usi'
-        "ng CBC with PKCS5Padding is susceptible to padding oracle attacks. A malicious actor could"
-        " discern the difference between plaintext with valid or invalid padding. Further, CBC mode"
-        " does not include any integrity checks. Use 'AES/GCM/NoPadding' instead.\\n    \\nThe iss"
-        "ue was detected in `tests/files/vulnerable.java`, line `28`, column `44`, below is a code s"
-        "nippet from the vulnerable code\\n```java\\nCipher cipher = Cipher.getInstance('AES/CBC/PK"
-        'CS5Padding\');\\n```", "title": "Cbc Padding Oracle"}'
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"android_store": '
+        '{"package_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
+        '"title": "Cbc Padding Oracle"}'
     )
 
 
@@ -262,15 +257,9 @@ def testAgentSemgrep_whenAnalysisRunsWithoutPathWithoutErrors_emitsBackVulnerabi
         "```"
     )
     assert vuln["dna"] == (
-        '{"location": {"android_store": {"package_name": "a.b.c"}, "metadata": '
-        '[{"type": "FILE_PATH", "value": "/tmp/tmpza6g8qu0.java"}]}, "technical_detail": '
-        '"Cbc Padding Oracle: Using CBC with PKCS5Padding is susceptible to padding oracle '
-        "attacks. A malicious actor could discern the difference between plaintext with valid o"
-        "r invalid padding. Further, CBC mode does not include any integrity checks. Use 'AES/"
-        "GCM/NoPadding' instead.\\n    \\nThe issue was detected in `/tmp/tmpza6g8qu0.java`, "
-        "line `28`, column `44`, below is a code snippet from the vulnerable code\\n```java\\nC"
-        'ipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');\\n```", "title": "Cbc Pad'
-        'ding Oracle"}'
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"android_store":'
+        ' {"package_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "/tmp/tmpza6g8qu0.java"}]}, "tit'
+        'le": "Cbc Padding Oracle"}'
     )
 
 
@@ -452,12 +441,7 @@ def testAgentSemgrep_whenIosAsset_addsIosAssetToVulnLocation(
     assert vuln["vulnerability_location"]["ios_store"] is not None
     assert vuln["vulnerability_location"]["ios_store"]["bundle_id"] == "a.b.c"
     assert vuln["dna"] == (
-        '{"location": {"ios_store": {"bundle_id": "a.b.c"}, "metadata": [{"type": "FILE_PATH", '
-        '"value": "tests/files/vulnerable.java"}]}, "technical_detail": "Cbc Padding Oracle: Using'
-        " CBC with PKCS5Padding is susceptible to padding oracle attacks. A malicious actor could "
-        "discern the difference between plaintext with valid or invalid padding. Further, CBC mode"
-        " does not include any integrity checks. Use 'AES/GCM/NoPadding' instead.\\n    \\nThe i"
-        "ssue was detected in `tests/files/vulnerable.java`, line `28`, column `44`, below is a co"
-        "de snippet from the vulnerable code\\n```java\\nCipher cipher = Cipher.getInstance('AES/"
-        'CBC/PKCS5Padding\');\\n```", "title": "Cbc Padding Oracle"}'
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"ios_store": '
+        '{"bundle_id": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
+        '"title": "Cbc Padding Oracle"}'
     )

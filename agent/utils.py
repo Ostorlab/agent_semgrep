@@ -121,20 +121,20 @@ def _sort_dict(dictionary: dict[str, Any] | list[Any]) -> dict[str, Any] | list[
 
 def _compute_vulnerability_dna(
     title: str,
-    technical_detail: str,
+    lines: str,
     vulnerability_location: vulnerability_mixin.VulnerabilityLocation | None,
 ) -> str:
     """Compute a deterministic, debuggable DNA representation for a vulnerability.
     Args:
         title: Generate KB title.
-        technical_detail: the detail of the vulnerability including the lines of code and affected file name.
+        lines: the lines where the vulnerability was detected.
         vulnerability_location: the computed vulnerability location.
     Returns:
         A deterministic JSON representation of the vulnerability DNA.
     """
     dna_data: dict[str, Any] = {
         "title": title,
-        "technical_detail": technical_detail,
+        "lines": lines,
     }
 
     if vulnerability_location is not None:
@@ -206,6 +206,7 @@ def parse_results(
             vulnerability_location = _prepare_vulnerability_location(
                 file_path=path, package_name=package_name, bundle_id=bundle_id
             )
+        lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
 
         yield Vulnerability(
             entry=kb.Entry(
@@ -225,9 +226,7 @@ def parse_results(
             technical_detail=technical_detail,
             risk_rating=RISK_RATING_MAPPING[impact],
             vulnerability_location=vulnerability_location,
-            vuln_dna=_compute_vulnerability_dna(
-                title, technical_detail, vulnerability_location
-            ),
+            vuln_dna=_compute_vulnerability_dna(title, lines, vulnerability_location),
         )
 
 
