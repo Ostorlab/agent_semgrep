@@ -14,6 +14,7 @@ from rich import logging as rich_logging
 
 from agent import utils
 
+
 logging.basicConfig(
     format="%(message)s",
     datefmt="[%X]",
@@ -31,31 +32,16 @@ FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 
-FILE_TYPE_BLACKLIST = (
-    ".car",
-    ".dex",
-    ".dylib",
-    ".eot",
-    ".gif",
-    ".ico",
-    ".jpeg",
-    ".jpg",
-    ".json",
-    ".mobileprovision",
-    ".nib",
-    ".pdf",
-    ".plist",
-    ".png",
-    ".psd",
-    ".so",
-    ".strings",
-    ".svg",
-    ".symbols",
-    ".ttf",
-    ".woff",
-    ".woff2",
-    ".zip",
-    ".xml",
+FILE_TYPE_WHITELIST = (
+    ".js",
+    ".html",
+    ".py",
+    ".txt",
+    ".css",
+    ".mustache",
+    ".java",
+    ".ts",
+    ".env",
 )
 
 
@@ -117,9 +103,10 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         file_type = utils.get_file_type(content, path)
         logger.info("Analyzing file `%s` with type `%s`.", path, file_type)
 
-        if file_type in FILE_TYPE_BLACKLIST:
+        if file_type not in FILE_TYPE_WHITELIST:
             logger.debug("File type is blacklisted.")
             return
+
         bundle_id = message.data.get("ios_metadata", {}).get("bundle_id")
         package_name = message.data.get("android_metadata", {}).get("package_name")
 
