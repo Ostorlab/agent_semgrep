@@ -14,7 +14,7 @@ from rich import logging as rich_logging
 
 from agent import utils
 
-info
+
 logging.basicConfig(
     format="%(message)s",
     datefmt="[%X]",
