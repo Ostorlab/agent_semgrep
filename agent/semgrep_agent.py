@@ -4,16 +4,16 @@ import json
 import logging
 import subprocess
 import tempfile
-import jsbeautifier
 from typing import Any
 
+import jsbeautifier
+from ostorlab.agent import agent
 from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import agent_report_vulnerability_mixin
-from ostorlab.agent import agent
 from rich import logging as rich_logging
 
 from agent import utils
-
+info
 logging.basicConfig(
     format="%(message)s",
     datefmt="[%X]",
@@ -104,16 +104,25 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         logger.info("Analyzing file `%s` with type `%s`.", path, file_type)
 
         if file_type not in FILE_TYPE_WHITELIST:
-            logger.info("File type is blacklisted.")
+            logger.debug("File type is blacklisted.")
             return
+        
+        bundle_id = message.data.get("ios_metadata", {}).get("bundle_id")
+        package_name = message.data.get("android_metadata", {}).get("package_name")
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
             if path is not None and path.endswith(".js") is True:
                 # Beautify JavaScript source code to handle minified JS. By using Beautifier, we reduce false positive
                 # and produce better reports.
-                infile.write(
-                    jsbeautifier.beautify(content.decode(errors="ignore")).encode()
-                )
+                try:
+                    infile.write(
+                        jsbeautifier.beautify(content.decode(errors="ignore")).encode()
+                    )
+                except AttributeError as e:
+                    logger.warning(
+                        "Error occurred %s while formatting file %s.", e, path
+                    )
+                    return
             else:
                 infile.write(content)
             infile.flush()
@@ -129,19 +138,32 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             if isinstance(stdout, bytes) and len(stderr) == 0:
                 json_output = json.loads(stdout)
                 json_output["path"] = path
-                self._emit_results(json_output)
-                logger.info("Semgrep completed without errors.")
+                self._emit_results(
+                    json_output=json_output,
+                    package_name=package_name,
+                    bundle_id=bundle_id,
+                )
+                logger.debug("Semgrep completed without errors.")
             else:
                 logger.error("Semgrep completed with errors %s", stderr)
 
-    def _emit_results(self, json_output: dict[str, Any]) -> None:
+    def _emit_results(
+        self,
+        json_output: dict[str, Any],
+        package_name: str | None = None,
+        bundle_id: str | None = None,
+    ) -> None:
         """Parses results and emits vulnerabilities."""
-        for vuln in utils.parse_results(json_output):
+        for vuln in utils.parse_results(
+            json_output=json_output, package_name=package_name, bundle_id=bundle_id
+        ):
             logger.info("Found vulnerability: %s", vuln)
             self.report_vulnerability(
                 entry=vuln.entry,
                 technical_detail=vuln.technical_detail,
                 risk_rating=vuln.risk_rating,
+                vulnerability_location=vuln.vulnerability_location,
+                dna=vuln.vuln_dna,
             )
 
 
