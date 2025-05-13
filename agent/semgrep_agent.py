@@ -13,6 +13,7 @@ from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from rich import logging as rich_logging
 
 from agent import utils
+
 info
 logging.basicConfig(
     format="%(message)s",
@@ -106,7 +107,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         if file_type not in FILE_TYPE_WHITELIST:
             logger.debug("File type is blacklisted.")
             return
-        
+
         bundle_id = message.data.get("ios_metadata", {}).get("bundle_id")
         package_name = message.data.get("android_metadata", {}).get("package_name")
 
