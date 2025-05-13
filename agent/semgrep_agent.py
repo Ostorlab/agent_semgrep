@@ -37,7 +37,6 @@ FILE_TYPE_WHITELIST = (
     ".html",
     ".py",
     ".txt",
-    ".xml",
     ".css",
     ".mustache",
     ".java",
