@@ -112,9 +112,9 @@ def _sort_dict(dictionary: dict[str, Any] | list[Any]) -> dict[str, Any] | list[
     if isinstance(dictionary, list):
         return sorted(
             dictionary,
-            key=lambda x: json.dumps(x, sort_keys=True)
-            if isinstance(x, dict)
-            else str(x),
+            key=lambda x: (
+                json.dumps(x, sort_keys=True) if isinstance(x, dict) else str(x)
+            ),
         )
     return dictionary
 
@@ -245,9 +245,9 @@ def get_file_type(content: bytes, path: str | None) -> str:
 @tenacity.retry(
     stop=tenacity.stop_after_attempt(NUMBER_RETRIES),
     retry=tenacity.retry_if_exception_type(requests.exceptions.RequestException),
-    retry_error_callback=lambda retry_state: retry_state.outcome.result()
-    if retry_state.outcome is not None
-    else None,
+    retry_error_callback=lambda retry_state: (
+        retry_state.outcome.result() if retry_state.outcome is not None else None
+    ),
 )
 def _download_file(file_url: str) -> bytes | None:
     """Download a file.
