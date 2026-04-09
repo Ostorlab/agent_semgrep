@@ -1,6 +1,5 @@
 ostorlab[agent]
 rich
-semgrep==1.99.0
 python-magic
 jsbeautifier
 tenacity
