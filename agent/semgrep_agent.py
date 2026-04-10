@@ -109,6 +109,9 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
 
         bundle_id = message.data.get("ios_metadata", {}).get("bundle_id")
         package_name = message.data.get("android_metadata", {}).get("package_name")
+        harmony_bundle_name = message.data.get("harmonyos_metadata", {}).get(
+            "bundle_name"
+        )
 
         with tempfile.NamedTemporaryFile(suffix=file_type) as infile:
             if path is not None and path.endswith(".js") is True:
@@ -142,6 +145,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                     json_output=json_output,
                     package_name=package_name,
                     bundle_id=bundle_id,
+                    harmony_bundle_name=harmony_bundle_name,
                 )
                 logger.debug("Semgrep completed without errors.")
             else:
@@ -152,10 +156,14 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         json_output: dict[str, Any],
         package_name: str | None = None,
         bundle_id: str | None = None,
+        harmony_bundle_name: str | None = None,
     ) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in utils.parse_results(
-            json_output=json_output, package_name=package_name, bundle_id=bundle_id
+            json_output=json_output,
+            package_name=package_name,
+            bundle_id=bundle_id,
+            harmony_bundle_name=harmony_bundle_name,
         ):
             logger.info("Found vulnerability: %s", vuln)
             self.report_vulnerability(

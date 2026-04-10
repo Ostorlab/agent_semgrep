@@ -21,6 +21,7 @@ from ostorlab.agent.message import message as m
 from ostorlab.assets import asset as os_asset
 from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
+from ostorlab.assets import harmonyos_store
 
 
 LINE_SIZE_MAX = 5000
@@ -146,16 +147,21 @@ def _compute_vulnerability_dna(
 
 
 def _prepare_vulnerability_location(
-    file_path: str, package_name: str | None = None, bundle_id: str | None = None
+    file_path: str,
+    package_name: str | None = None,
+    bundle_id: str | None = None,
+    harmony_bundle_name: str | None = None,
 ) -> vulnerability_mixin.VulnerabilityLocation | None:
-    """Prepare a `VulnerabilityLocation` instance with iOS asset & its Bundle ID, with file path as vulnerability metadata."""
-    if bundle_id is None and package_name is None:
+    """Prepare a `VulnerabilityLocation` with store asset and file path metadata."""
+    if bundle_id is None and package_name is None and harmony_bundle_name is None:
         return None
     asset: os_asset.Asset | None = None
     if bundle_id is not None:
         asset = ios_store.IOSStore(bundle_id=bundle_id)
     if package_name is not None:
         asset = android_store.AndroidStore(package_name=package_name)
+    if harmony_bundle_name is not None:
+        asset = harmonyos_store.HarmonyOSStore(bundle_name=harmony_bundle_name)
 
     return vulnerability_mixin.VulnerabilityLocation(
         asset=asset,
@@ -172,6 +178,7 @@ def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
     bundle_id: str | None = None,
+    harmony_bundle_name: str | None = None,
 ) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
@@ -179,6 +186,7 @@ def parse_results(
         json_output: Semgrep json output.
         package_name: optional application package name to augment the vulnerability location.
         bundle_id: optional bundle identifier to augment the vulnerability location.
+        harmony_bundle_name: optional HarmonyOS bundle name to augment vulnerability location.
 
     Yields:
         Vulnerability entry.
@@ -204,7 +212,10 @@ def parse_results(
         vulnerability_location = None
         if path is not None:
             vulnerability_location = _prepare_vulnerability_location(
-                file_path=path, package_name=package_name, bundle_id=bundle_id
+                file_path=path,
+                package_name=package_name,
+                bundle_id=bundle_id,
+                harmony_bundle_name=harmony_bundle_name,
             )
         lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
 

@@ -445,3 +445,41 @@ def testAgentSemgrep_whenIosAsset_addsIosAssetToVulnLocation(
         '{"bundle_id": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
         '"title": "Cbc Padding Oracle"}'
     )
+
+
+def testAgentSemgrep_whenHarmonyOSAsset_addsHarmonyOSAssetToVulnLocation(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    harmonyos_scan_message_file: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Unit test for the full life cycle of the agent with HarmonyOS metadata."""
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
+    )
+
+    test_agent.process(harmonyos_scan_message_file)
+    vuln = agent_mock[0].data
+
+    assert vuln["title"] == "Cbc Padding Oracle"
+    assert vuln["risk_rating"] == "MEDIUM"
+    assert vuln["recommendation"] == "AES/GCM/NoPadding"
+    assert vuln["security_issue"] is True
+    assert vuln["vulnerability_location"] is not None
+    assert vuln["vulnerability_location"]["metadata"][0]["type"] == "FILE_PATH"
+    assert (
+        vuln["vulnerability_location"]["metadata"][0]["value"]
+        == "tests/files/vulnerable.java"
+    )
+    assert vuln["vulnerability_location"]["harmonyos_store"] is not None
+    assert (
+        vuln["vulnerability_location"]["harmonyos_store"]["bundle_name"]
+        == "a.b.c"
+    )
+    assert vuln["dna"] == (
+        '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"harmonyos_store": '
+        '{"bundle_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
+        '"title": "Cbc Padding Oracle"}'
+    )
