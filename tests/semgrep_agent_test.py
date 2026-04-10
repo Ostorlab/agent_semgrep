@@ -474,10 +474,7 @@ def testAgentSemgrep_whenHarmonyOSAsset_addsHarmonyOSAssetToVulnLocation(
         == "tests/files/vulnerable.java"
     )
     assert vuln["vulnerability_location"]["harmonyos_store"] is not None
-    assert (
-        vuln["vulnerability_location"]["harmonyos_store"]["bundle_name"]
-        == "a.b.c"
-    )
+    assert vuln["vulnerability_location"]["harmonyos_store"]["bundle_name"] == "a.b.c"
     assert vuln["dna"] == (
         '{"lines": "Cipher cipher = Cipher.getInstance(\'AES/CBC/PKCS5Padding\');", "location": {"harmonyos_store": '
         '{"bundle_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
