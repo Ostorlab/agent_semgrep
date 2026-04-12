@@ -103,6 +103,20 @@ def ios_scan_message_file() -> message.Message:
 
 
 @pytest.fixture
+def harmonyos_scan_message_file() -> message.Message:
+    """Creates a dummy message with HarmonyOS metadata for testing purposes."""
+    selector = "v3.asset.file"
+    path = "tests/files/vulnerable.java"
+    with open(path, "rb") as infile:
+        msg_data = {
+            "content": infile.read(),
+            "path": path,
+            "harmonyos_metadata": {"bundle_name": "a.b.c"},
+        }
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
 def scan_message_js_file() -> message.Message:
     """Creates a dummy message of type v3.asset.file to be used by the agent for testing purposes."""
     selector = "v3.asset.file"
