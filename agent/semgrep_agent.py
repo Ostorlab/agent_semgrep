@@ -49,7 +49,8 @@ def _run_analysis(
     input_file_path: str, max_memory_limit: int = DEFAULT_MEMORY_LIMIT
 ) -> tuple[bytes, bytes] | None:
     command = [
-        "semgrep",
+        "opengrep",
+        "scan",
         "-q",
         "--config",
         "auto",

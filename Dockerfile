@@ -1,19 +1,21 @@
 FROM python:3.11-alpine as base
+ENV OPENGREP_VERSION=v1.19.0
 FROM base as builder
 RUN apk add build-base
-RUN mkdir /install /semgrep_app
+RUN mkdir /install
 WORKDIR /install
 COPY requirement.txt /requirement.txt
 RUN pip install --upgrade pip
 RUN pip install --prefix=/install -r /requirement.txt
-RUN pip install --target=/semgrep_app semgrep==1.99.0
 FROM base
-RUN apk add libmagic
+RUN apk add libmagic bash curl
+RUN curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/${OPENGREP_VERSION}/install.sh -o /tmp/install-opengrep.sh \
+    && bash /tmp/install-opengrep.sh -v "${OPENGREP_VERSION}" \
+    && rm -f /tmp/install-opengrep.sh
 COPY --from=builder /install /usr/local
-COPY --from=builder /semgrep_app /opt/semgrep
-ENV PATH="/opt/semgrep/bin:${PATH}"
+ENV PATH="/root/.opengrep/cli/latest:${PATH}"
 RUN mkdir -p /app/agent
-ENV PYTHONPATH=/app:/opt/semgrep
+ENV PYTHONPATH=/app
 COPY agent /app/agent
 COPY ostorlab.yaml /app/agent/ostorlab.yaml
 WORKDIR /app
