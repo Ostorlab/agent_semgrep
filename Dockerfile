@@ -9,9 +9,9 @@ RUN pip install --upgrade pip
 RUN pip install --prefix=/install -r /requirement.txt
 FROM base
 RUN apk add libmagic bash curl
-RUN curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh -o /tmp/install-opengrep.sh \
+RUN curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/${OPENGREP_VERSION}/install.sh -o /tmp/install-opengrep.sh \
     && bash /tmp/install-opengrep.sh -v "${OPENGREP_VERSION}" \
-    && rm /tmp/install-opengrep.sh
+    && rm -f /tmp/install-opengrep.sh
 COPY --from=builder /install /usr/local
 ENV PATH="/root/.opengrep/cli/latest:${PATH}"
 RUN mkdir -p /app/agent
