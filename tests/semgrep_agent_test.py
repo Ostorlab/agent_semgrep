@@ -395,19 +395,20 @@ def testAgentSemgrep_whenValidMessage_constructCorrectCommand(
 
     test_agent.process(scan_message_file)
 
-    assert command_mock.call_args.args[0][0] == "semgrep"
-    assert command_mock.call_args.args[0][1] == "-q"
-    assert command_mock.call_args.args[0][2] == "--config"
-    assert command_mock.call_args.args[0][3] == "auto"
-    assert command_mock.call_args.args[0][4] == "--timeout"
-    assert command_mock.call_args.args[0][5] == "120"
-    assert command_mock.call_args.args[0][6] == "--timeout-threshold"
-    assert command_mock.call_args.args[0][7] == "0"
-    assert command_mock.call_args.args[0][8] == "--max-target-bytes"
-    assert command_mock.call_args.args[0][9] == "524288000"
-    assert command_mock.call_args.args[0][10] == "--max-memory"
-    assert command_mock.call_args.args[0][11] == "2147483648"
-    assert command_mock.call_args.args[0][12] == "--json"
+    assert command_mock.call_args.args[0][0] == "opengrep"
+    assert command_mock.call_args.args[0][1] == "scan"
+    assert command_mock.call_args.args[0][2] == "-q"
+    assert command_mock.call_args.args[0][3] == "--config"
+    assert command_mock.call_args.args[0][4] == "auto"
+    assert command_mock.call_args.args[0][5] == "--timeout"
+    assert command_mock.call_args.args[0][6] == "120"
+    assert command_mock.call_args.args[0][7] == "--timeout-threshold"
+    assert command_mock.call_args.args[0][8] == "0"
+    assert command_mock.call_args.args[0][9] == "--max-target-bytes"
+    assert command_mock.call_args.args[0][10] == "524288000"
+    assert command_mock.call_args.args[0][11] == "--max-memory"
+    assert command_mock.call_args.args[0][12] == "2147483648"
+    assert command_mock.call_args.args[0][13] == "--json"
 
 
 def testAgentSemgrep_whenIosAsset_addsIosAssetToVulnLocation(
