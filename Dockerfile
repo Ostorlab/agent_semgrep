@@ -1,4 +1,4 @@
-FROM python:3.11-alpine as base
+FROM python:3.14-alpine as base
 ENV OPENGREP_VERSION=v1.19.0
 FROM base as builder
 RUN apk add build-base
@@ -19,4 +19,4 @@ ENV PYTHONPATH=/app
 COPY agent /app/agent
 COPY ostorlab.yaml /app/agent/ostorlab.yaml
 WORKDIR /app
-CMD ["python3.11", "/app/agent/semgrep_agent.py"]
+CMD ["python", "/app/agent/semgrep_agent.py"]
