@@ -159,7 +159,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 logger.error("Semgrep completed with errors %s", stderr)
 
     def _process_repository_asset(self, message: m.Message, memory_limit: int) -> None:
-        """Scan a repository mounted on the shared /code volume."""
+        """Scan a repository on the shared /code volume."""
         repository_url = message.data.get("repository_url")
         commit_hash = message.data.get("commit_hash")
         output = _run_analysis(REPOSITORY_CODE_PATH, memory_limit)
