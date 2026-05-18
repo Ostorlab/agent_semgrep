@@ -31,6 +31,7 @@ TIMEOUT_THRESHOLD = 0
 FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
+REPOSITORY_CODE_PATH = "/code"
 
 FILE_TYPE_WHITELIST = (
     ".js",
@@ -91,11 +92,16 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             message: A message containing the path and the content of the file to be processed
 
         """
-        content = utils.get_file_content(message)
-        path = message.data.get("path")
         memory_limit = (
             self.args.get("memory_limit", DEFAULT_MEMORY_LIMIT) or DEFAULT_MEMORY_LIMIT
         )
+
+        if message.selector == "v3.asset.repository":
+            self._process_repository_asset(message, memory_limit)
+            return
+
+        content = utils.get_file_content(message)
+        path = message.data.get("path")
 
         if content is None:
             logger.error("Received empty file.")
@@ -152,12 +158,38 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             else:
                 logger.error("Semgrep completed with errors %s", stderr)
 
+    def _process_repository_asset(self, message: m.Message, memory_limit: int) -> None:
+        """Scan a repository mounted on the shared /code volume."""
+        repository_url = message.data.get("repository_url")
+        commit_hash = message.data.get("commit_hash")
+        repository_path = REPOSITORY_CODE_PATH
+
+        output = _run_analysis(repository_path, memory_limit)
+        if output is None:
+            logger.error("Repository scan completed with errors.")
+            return
+
+        stdout, stderr = output
+        if not isinstance(stdout, bytes) or len(stderr) > 0:
+            logger.error("Repository scan completed with errors %s", stderr)
+            return
+
+        json_output = json.loads(stdout)
+        self._emit_results(
+            json_output=json_output,
+            repository_url=repository_url,
+            commit_hash=commit_hash,
+        )
+        logger.debug("Repository scan completed without errors.")
+
     def _emit_results(
         self,
         json_output: dict[str, Any],
         package_name: str | None = None,
         bundle_id: str | None = None,
         harmony_bundle_name: str | None = None,
+        repository_url: str | None = None,
+        commit_hash: str | None = None,
     ) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in utils.parse_results(
@@ -165,6 +197,8 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             package_name=package_name,
             bundle_id=bundle_id,
             harmony_bundle_name=harmony_bundle_name,
+            repository_url=repository_url,
+            commit_hash=commit_hash,
         ):
             logger.info("Found vulnerability: %s", vuln)
             self.report_vulnerability(

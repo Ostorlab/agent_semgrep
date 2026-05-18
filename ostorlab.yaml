@@ -49,10 +49,15 @@ description: |
 license: Apache-2.0
 in_selectors: 
   - v3.asset.file
+  - v3.asset.repository
 out_selectors:
   - v3.report.vulnerability
 docker_file_path : Dockerfile 
 docker_build_root : .
+volumes:
+  - name: repository_code
+    path: /code
+    read_only: true
 args:
   - name: "memory_limit"
     description: "Memory limit for semgrep to use on a single file."

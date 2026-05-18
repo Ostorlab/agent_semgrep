@@ -481,3 +481,32 @@ def testAgentSemgrep_whenHarmonyOSAsset_addsHarmonyOSAssetToVulnLocation(
         '{"bundle_name": "a.b.c"}, "metadata": [{"type": "FILE_PATH", "value": "tests/files/vulnerable.java"}]}, '
         '"title": "Cbc Padding Oracle"}'
     )
+
+
+def testAgentSemgrep_whenRepositoryAsset_emitsBackVulnerabilityWithRepositoryLocation(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_asset_message: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Ensure repository assets are scanned and emit repository vulnerability location."""
+    del agent_persist_mock
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
+    )
+
+    test_agent.process(repository_asset_message)
+    vuln = agent_mock[0].data
+
+    assert vuln["vulnerability_location"] is not None
+    assert vuln["vulnerability_location"]["repository"] == {
+        "repository_url": "https://github.com/org/repo.git",
+        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+    }
+    assert vuln["vulnerability_location"]["metadata"][0]["type"] == "FILE_PATH"
+    assert (
+        vuln["vulnerability_location"]["metadata"][0]["value"]
+        == "/tmp/tmpza6g8qu0.java"
+    )
