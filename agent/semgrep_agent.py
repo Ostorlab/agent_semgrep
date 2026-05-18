@@ -162,9 +162,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """Scan a repository mounted on the shared /code volume."""
         repository_url = message.data.get("repository_url")
         commit_hash = message.data.get("commit_hash")
-        repository_path = REPOSITORY_CODE_PATH
-
-        output = _run_analysis(repository_path, memory_limit)
+        output = _run_analysis(REPOSITORY_CODE_PATH, memory_limit)
         if output is None:
             logger.error("Repository scan completed with errors.")
             return
