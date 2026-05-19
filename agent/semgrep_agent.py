@@ -25,6 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 COMMAND_TIMEOUT = 120
+REPOSITORY_COMMAND_TIMEOUT = 1200
 # Number of semgrep rules that can time out on a file before the file is skipped, 0 will have no limit.
 TIMEOUT_THRESHOLD = 0
 # 500MB
@@ -47,7 +48,9 @@ FILE_TYPE_WHITELIST = (
 
 
 def _run_analysis(
-    input_file_path: str, max_memory_limit: int = DEFAULT_MEMORY_LIMIT
+    input_file_path: str,
+    max_memory_limit: int = DEFAULT_MEMORY_LIMIT,
+    command_timeout: int = COMMAND_TIMEOUT,
 ) -> tuple[bytes, bytes] | None:
     command = [
         "opengrep",
@@ -56,7 +59,7 @@ def _run_analysis(
         "--config",
         "auto",
         "--timeout",
-        str(COMMAND_TIMEOUT),
+        str(command_timeout),
         "--timeout-threshold",
         str(TIMEOUT_THRESHOLD),
         "--max-target-bytes",
@@ -68,7 +71,7 @@ def _run_analysis(
     ]
     try:
         output = subprocess.run(
-            command, capture_output=True, check=True, timeout=COMMAND_TIMEOUT
+            command, capture_output=True, check=True, timeout=command_timeout
         )
     except subprocess.CalledProcessError as e:
         logger.error(
@@ -162,7 +165,11 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """Scan a repository on the shared /code volume."""
         repository_url = message.data.get("repository_url")
         commit_hash = message.data.get("commit_hash")
-        output = _run_analysis(REPOSITORY_CODE_PATH, memory_limit)
+        output = _run_analysis(
+            REPOSITORY_CODE_PATH,
+            memory_limit,
+            command_timeout=REPOSITORY_COMMAND_TIMEOUT,
+        )
         if output is None:
             logger.error("Repository scan completed with errors.")
             return
