@@ -22,6 +22,7 @@ from ostorlab.assets import asset as os_asset
 from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
 from ostorlab.assets import harmonyos_store
+from ostorlab.assets import repository as repository_asset
 
 
 LINE_SIZE_MAX = 5000
@@ -151,9 +152,16 @@ def _prepare_vulnerability_location(
     package_name: str | None = None,
     bundle_id: str | None = None,
     harmony_bundle_name: str | None = None,
+    repository_url: str | None = None,
+    commit_hash: str | None = None,
 ) -> vulnerability_mixin.VulnerabilityLocation | None:
     """Prepare a `VulnerabilityLocation` with store asset and file path metadata."""
-    if bundle_id is None and package_name is None and harmony_bundle_name is None:
+    if (
+        bundle_id is None
+        and package_name is None
+        and harmony_bundle_name is None
+        and repository_url is None
+    ):
         return None
     asset: os_asset.Asset | None = None
     if bundle_id is not None:
@@ -162,6 +170,11 @@ def _prepare_vulnerability_location(
         asset = android_store.AndroidStore(package_name=package_name)
     if harmony_bundle_name is not None:
         asset = harmonyos_store.HarmonyOSStore(bundle_name=harmony_bundle_name)
+    if repository_url is not None:
+        asset = repository_asset.Repository(
+            repository_url=repository_url,
+            commit_hash=commit_hash or "",
+        )
 
     return vulnerability_mixin.VulnerabilityLocation(
         asset=asset,
@@ -179,6 +192,8 @@ def parse_results(
     package_name: str | None = None,
     bundle_id: str | None = None,
     harmony_bundle_name: str | None = None,
+    repository_url: str | None = None,
+    commit_hash: str | None = None,
 ) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
@@ -216,6 +231,8 @@ def parse_results(
                 package_name=package_name,
                 bundle_id=bundle_id,
                 harmony_bundle_name=harmony_bundle_name,
+                repository_url=repository_url,
+                commit_hash=commit_hash,
             )
         lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
 
