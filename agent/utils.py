@@ -154,6 +154,7 @@ def _prepare_vulnerability_location(
     harmony_bundle_name: str | None = None,
     repository_url: str | None = None,
     commit_hash: str | None = None,
+    provider: str | None = None,
 ) -> vulnerability_mixin.VulnerabilityLocation | None:
     """Prepare a `VulnerabilityLocation` with store asset and file path metadata."""
     if (
@@ -174,6 +175,7 @@ def _prepare_vulnerability_location(
         asset = repository_asset.Repository(
             repository_url=repository_url,
             commit_hash=commit_hash or "",
+            provider=provider or "",
         )
 
     return vulnerability_mixin.VulnerabilityLocation(
@@ -194,6 +196,7 @@ def parse_results(
     harmony_bundle_name: str | None = None,
     repository_url: str | None = None,
     commit_hash: str | None = None,
+    provider: str | None = None,
 ) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
@@ -233,6 +236,7 @@ def parse_results(
                 harmony_bundle_name=harmony_bundle_name,
                 repository_url=repository_url,
                 commit_hash=commit_hash,
+                provider=provider,
             )
         lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
 

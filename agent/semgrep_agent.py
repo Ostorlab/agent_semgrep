@@ -165,6 +165,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """Scan a repository on the shared /code volume."""
         repository_url = message.data.get("repository_url")
         commit_hash = message.data.get("commit_hash")
+        provider = message.data.get("provider")
         output = _run_analysis(
             REPOSITORY_CODE_PATH,
             memory_limit,
@@ -184,6 +185,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             json_output=json_output,
             repository_url=repository_url,
             commit_hash=commit_hash,
+            provider=provider,
         )
         logger.debug("Repository scan completed without errors.")
 
@@ -195,6 +197,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         harmony_bundle_name: str | None = None,
         repository_url: str | None = None,
         commit_hash: str | None = None,
+        provider: str | None = None,
     ) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in utils.parse_results(
@@ -204,6 +207,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             harmony_bundle_name=harmony_bundle_name,
             repository_url=repository_url,
             commit_hash=commit_hash,
+            provider=provider,
         ):
             logger.info("Found vulnerability: %s", vuln)
             self.report_vulnerability(
