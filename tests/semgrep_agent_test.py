@@ -504,6 +504,7 @@ def testAgentSemgrep_whenRepositoryAsset_emitsBackVulnerabilityWithRepositoryLoc
     assert vuln["vulnerability_location"]["repository"] == {
         "repository_url": "https://github.com/org/repo.git",
         "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        "provider": "GITHUB",
     }
     assert vuln["vulnerability_location"]["metadata"][0]["type"] == "FILE_PATH"
     assert (
