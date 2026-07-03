@@ -263,8 +263,17 @@ def parse_results(
 
 
 def get_file_type(content: bytes, path: str | None) -> str:
+    mime = magic.from_buffer(content, mime=True)
+    if mime in [
+        "application/gzip",
+        "application/zip",
+        "application/x-bzip2",
+        "application/x-xz",
+        "application/x-tar",
+    ]:
+        return str(mimetypes.guess_extension(mime) or ".bin")
+
     if path is None:
-        mime = magic.from_buffer(content, mime=True)
         file_type = mimetypes.guess_extension(mime)
         return str(file_type)
     else:
