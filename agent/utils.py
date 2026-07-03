@@ -175,7 +175,7 @@ def _prepare_vulnerability_location(
         asset = repository_asset.Repository(
             repository_url=repository_url,
             commit_hash=commit_hash or "",
-            provider=provider or "",
+            provider=provider or "git",
         )
 
     return vulnerability_mixin.VulnerabilityLocation(

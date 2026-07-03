@@ -511,3 +511,35 @@ def testAgentSemgrep_whenRepositoryAsset_emitsBackVulnerabilityWithRepositoryLoc
         vuln["vulnerability_location"]["metadata"][0]["value"]
         == "/tmp/tmpza6g8qu0.java"
     )
+
+
+def testSemgrepAgent_whenRepositoryMessageHasNoProvider_shouldEmitVulnerabilityWithGitProvider(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    mocker: plugin.MockerFixture,
+) -> None:
+    repository_asset_message = message.Message.from_data(
+        "v3.asset.repository",
+        data={
+            "repository_url": "https://github.com/org/repo.git",
+            "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        },
+    )
+
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(
+            b'{"results": [{"check_id": "java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle", "path": "/tmp/tmpza6g8qu0.java", "start": {"line": 15, "col": 14}, "end": {"line": 15, "col": 63}, "extra": {"message": "Using CBC with PKCS5Padding is susceptible to padding oracle attacks. A malicious actor could decrypt the cipher text if they are able to observe error messages. Use AES/GCM/NoPadding or ChaCha20/Poly1305 instead.", "metadata": {"category": "security", "cwe": ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"], "license": "Commons Clause License Condition v1.0[scl0]", "owasp": ["A03:2017 - Sensitive Data Exposure", "A02:2021 - Cryptographic Failures"], "references": ["https://capec.mitre.org/data/definitions/463.html", "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"], "source-rule-url": "https://find-sec-bugs.github.io/bugs.htm#PADDING_ORACLE", "technology": ["java"], "vulnerability_class": ["Cryptographic Issues"]}, "metavars": {}, "lines": "      Cipher c = Cipher.getInstance(\\"AES/CBC/PKCS5Padding\\");", "severity": "WARNING"}}], "errors": []}',
+            b"",
+        ),
+    )
+
+    test_agent.process(repository_asset_message)
+    vuln = agent_mock[0].data
+
+    assert vuln["vulnerability_location"] is not None
+    assert vuln["vulnerability_location"]["repository"] == {
+        "repository_url": "https://github.com/org/repo.git",
+        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        "provider": "git",
+    }
