@@ -47,9 +47,10 @@ description: |
   ## License
   [Apache-2.0](./LICENSE)
 license: Apache-2.0
-in_selectors: 
+in_selectors:
   - v3.asset.file
   - v3.asset.repository
+  - v3.asset.file.repository_archive
 out_selectors:
   - v3.report.vulnerability
 docker_file_path : Dockerfile 

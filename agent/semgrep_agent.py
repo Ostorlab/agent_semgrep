@@ -33,6 +33,10 @@ FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 REPOSITORY_CODE_PATH = "/code"
+REPOSITORY_SELECTORS = (
+    "v3.asset.repository",
+    "v3.asset.file.repository_archive",
+)
 
 FILE_TYPE_WHITELIST = (
     ".js",
@@ -99,7 +103,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             self.args.get("memory_limit", DEFAULT_MEMORY_LIMIT) or DEFAULT_MEMORY_LIMIT
         )
 
-        if message.selector == "v3.asset.repository":
+        if message.selector in REPOSITORY_SELECTORS:
             self._process_repository_asset(message, memory_limit)
             return
 
