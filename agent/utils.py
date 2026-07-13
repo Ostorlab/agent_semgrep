@@ -23,6 +23,7 @@ from ostorlab.assets import ios_store
 from ostorlab.assets import android_store
 from ostorlab.assets import harmonyos_store
 from ostorlab.assets import repository as repository_asset
+from ostorlab.assets import repository_archive as repository_archive_asset
 
 
 LINE_SIZE_MAX = 5000
@@ -155,6 +156,7 @@ def _prepare_vulnerability_location(
     repository_url: str | None = None,
     commit_hash: str | None = None,
     provider: str | None = None,
+    archive_content_url: str | None = None,
 ) -> vulnerability_mixin.VulnerabilityLocation | None:
     """Prepare a `VulnerabilityLocation` with store asset and file path metadata."""
     if (
@@ -162,6 +164,7 @@ def _prepare_vulnerability_location(
         and package_name is None
         and harmony_bundle_name is None
         and repository_url is None
+        and archive_content_url is None
     ):
         return None
     asset: os_asset.Asset | None = None
@@ -176,6 +179,10 @@ def _prepare_vulnerability_location(
             repository_url=repository_url,
             commit_hash=commit_hash or "",
             provider=provider or "GIT",
+        )
+    if archive_content_url is not None:
+        asset = repository_archive_asset.RepositoryArchive(
+            content_url=archive_content_url
         )
 
     return vulnerability_mixin.VulnerabilityLocation(
@@ -197,6 +204,7 @@ def parse_results(
     repository_url: str | None = None,
     commit_hash: str | None = None,
     provider: str | None = None,
+    archive_content_url: str | None = None,
 ) -> Iterator[Vulnerability]:
     """Parses JSON generated Semgrep results and yield vulnerability entries.
 
@@ -205,6 +213,10 @@ def parse_results(
         package_name: optional application package name to augment the vulnerability location.
         bundle_id: optional bundle identifier to augment the vulnerability location.
         harmony_bundle_name: optional HarmonyOS bundle name to augment vulnerability location.
+        repository_url: optional repository URL to augment the vulnerability location.
+        commit_hash: optional commit hash of the scanned repository.
+        provider: optional provider of the scanned repository.
+        archive_content_url: optional content URL of the scanned repository archive.
 
     Yields:
         Vulnerability entry.
@@ -237,6 +249,7 @@ def parse_results(
                 repository_url=repository_url,
                 commit_hash=commit_hash,
                 provider=provider,
+                archive_content_url=archive_content_url,
             )
         lines = vulnerability["extra"].get("lines", "").strip()[:LINE_SIZE_MAX]
 

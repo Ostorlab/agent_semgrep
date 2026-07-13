@@ -545,14 +545,14 @@ def testSemgrepAgent_whenRepositoryMessageHasNoProvider_shouldEmitVulnerabilityW
     }
 
 
-def testAgentSemgrep_whenRepositoryArchiveAsset_emitsBackVulnerabilityWithRepositoryLocation(
+def testAgentSemgrep_whenRepositoryArchiveAsset_emitsBackVulnerabilityWithRepositoryArchiveLocation(
     test_agent: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     repository_archive_asset_message: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """Ensure repository archive assets are scanned and emit repository vulnerability location."""
+    """Ensure repository archive assets emit a repository archive vulnerability location."""
     del agent_persist_mock
     mocker.patch(
         "agent.semgrep_agent._run_analysis",
@@ -560,19 +560,39 @@ def testAgentSemgrep_whenRepositoryArchiveAsset_emitsBackVulnerabilityWithReposi
     )
 
     test_agent.process(repository_archive_asset_message)
-    vuln = agent_mock[0].data
 
+    vuln = agent_mock[0].data
     assert vuln["vulnerability_location"] is not None
-    assert vuln["vulnerability_location"]["repository"] == {
-        "repository_url": "https://github.com/org/repo.git",
-        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
-        "provider": "GITHUB",
+    assert vuln["vulnerability_location"]["repository_archive"] == {
+        "content_url": "https://github.com/org/repo/archive/main.zip"
     }
+    assert vuln["vulnerability_location"].get("repository") is None
     assert vuln["vulnerability_location"]["metadata"][0]["type"] == "FILE_PATH"
     assert (
         vuln["vulnerability_location"]["metadata"][0]["value"]
         == "/tmp/tmpza6g8qu0.java"
     )
+
+
+def testAgentSemgrep_whenRepositoryArchiveAssetWithoutContentUrl_emitsBackVulnerabilityWithoutLocation(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_archive_asset_message_without_content_url: message.Message,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A malformed archive message without a content url cannot identify the asset, the vulnerability
+    is still reported but with no location."""
+    del agent_persist_mock
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
+    )
+
+    test_agent.process(repository_archive_asset_message_without_content_url)
+
+    assert len(agent_mock) > 0
+    assert agent_mock[0].data.get("vulnerability_location") is None
 
 
 def testAgentSemgrep_whenRepositoryArchiveAsset_scansSharedCodeVolume(

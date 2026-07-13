@@ -153,11 +153,18 @@ def repository_archive_asset_message() -> message.Message:
     """Creates a dummy message of type v3.asset.file.repository_archive for testing purposes."""
     selector = "v3.asset.file.repository_archive"
     msg_data = {
-        "repository_url": "https://github.com/org/repo.git",
-        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
-        "provider": "GITHUB",
+        "content_url": "https://github.com/org/repo/archive/main.zip",
+        "path": "repo-main.zip",
     }
-    return message.Message(selector=selector, data=msg_data, raw=b"")
+    return message.Message.from_data(selector, data=msg_data)
+
+
+@pytest.fixture
+def repository_archive_asset_message_without_content_url() -> message.Message:
+    """Creates a v3.asset.file.repository_archive message missing its content url."""
+    selector = "v3.asset.file.repository_archive"
+    msg_data = {"path": "repo-main.zip"}
+    return message.Message.from_data(selector, data=msg_data)
 
 
 @pytest.fixture()
