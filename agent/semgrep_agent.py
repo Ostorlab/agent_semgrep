@@ -33,6 +33,8 @@ FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 REPOSITORY_CODE_PATH = "/code"
+REPOSITORY_SELECTOR = "v3.asset.repository"
+REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
 FILE_TYPE_WHITELIST = (
     ".js",
@@ -99,7 +101,11 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             self.args.get("memory_limit", DEFAULT_MEMORY_LIMIT) or DEFAULT_MEMORY_LIMIT
         )
 
-        if message.selector == "v3.asset.repository":
+        if message.selector == REPOSITORY_ARCHIVE_SELECTOR:
+            self._process_repository_archive_asset(message, memory_limit)
+            return
+
+        if message.selector == REPOSITORY_SELECTOR:
             self._process_repository_asset(message, memory_limit)
             return
 
@@ -161,11 +167,8 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             else:
                 logger.error("Semgrep completed with errors %s", stderr)
 
-    def _process_repository_asset(self, message: m.Message, memory_limit: int) -> None:
-        """Scan a repository on the shared /code volume."""
-        repository_url = message.data.get("repository_url")
-        commit_hash = message.data.get("commit_hash")
-        provider = message.data.get("provider")
+    def _scan_repository_code(self, memory_limit: int) -> dict[str, Any] | None:
+        """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
         output = _run_analysis(
             REPOSITORY_CODE_PATH,
             memory_limit,
@@ -173,21 +176,42 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         )
         if output is None:
             logger.error("Repository scan completed with errors.")
-            return
+            return None
 
         stdout, stderr = output
         if not isinstance(stdout, bytes) or len(stderr) > 0:
             logger.error("Repository scan completed with errors %s", stderr)
+            return None
+
+        json_output: dict[str, Any] = json.loads(stdout)
+        logger.debug("Repository scan completed without errors.")
+        return json_output
+
+    def _process_repository_asset(self, message: m.Message, memory_limit: int) -> None:
+        """Scan a repository asset and report against its repository URL."""
+        json_output = self._scan_repository_code(memory_limit)
+        if json_output is None:
             return
 
-        json_output = json.loads(stdout)
         self._emit_results(
             json_output=json_output,
-            repository_url=repository_url,
-            commit_hash=commit_hash,
-            provider=provider,
+            repository_url=message.data.get("repository_url"),
+            commit_hash=message.data.get("commit_hash"),
+            provider=message.data.get("provider"),
         )
-        logger.debug("Repository scan completed without errors.")
+
+    def _process_repository_archive_asset(
+        self, message: m.Message, memory_limit: int
+    ) -> None:
+        """Scan a repository archive asset and report against its content URL, it carries no repository URL, commit hash nor provider."""
+        json_output = self._scan_repository_code(memory_limit)
+        if json_output is None:
+            return
+
+        self._emit_results(
+            json_output=json_output,
+            archive_content_url=message.data.get("content_url"),
+        )
 
     def _emit_results(
         self,
@@ -198,6 +222,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         repository_url: str | None = None,
         commit_hash: str | None = None,
         provider: str | None = None,
+        archive_content_url: str | None = None,
     ) -> None:
         """Parses results and emits vulnerabilities."""
         for vuln in utils.parse_results(
@@ -208,6 +233,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             repository_url=repository_url,
             commit_hash=commit_hash,
             provider=provider,
+            archive_content_url=archive_content_url,
         ):
             logger.info("Found vulnerability: %s", vuln)
             self.report_vulnerability(
