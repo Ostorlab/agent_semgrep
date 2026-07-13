@@ -168,11 +168,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
                 logger.error("Semgrep completed with errors %s", stderr)
 
     def _scan_repository_code(self, memory_limit: int) -> dict[str, Any] | None:
-        """Scan the source code extracted to the shared /code volume.
-
-        Repository and repository archive assets both have their source code already extracted to
-        the shared volume, so the content carried by the message itself is never read.
-        """
+        """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
         output = _run_analysis(
             REPOSITORY_CODE_PATH,
             memory_limit,
