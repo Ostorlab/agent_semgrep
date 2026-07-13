@@ -203,11 +203,7 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
     def _process_repository_archive_asset(
         self, message: m.Message, memory_limit: int
     ) -> None:
-        """Scan a repository archive asset and report against its content URL.
-
-        A repository archive is identified by its content URL, it carries no repository URL, commit
-        hash nor provider.
-        """
+        """Scan a repository archive asset and report against its content URL, it carries no repository URL, commit hash nor provider."""
         json_output = self._scan_repository_code(memory_limit)
         if json_output is None:
             return
