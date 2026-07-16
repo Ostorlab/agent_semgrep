@@ -223,7 +223,9 @@ def testShouldExcludePath_whenPathDoesNotMatch_shouldReturnFalse() -> None:
     assert result is False
 
 
-def testShouldExcludePath_whenSimilarPrefixNotUnderWorkspace_shouldReturnFalse() -> None:
+def testShouldExcludePath_whenSimilarPrefixNotUnderWorkspace_shouldReturnFalse() -> (
+    None
+):
     result = utils.should_exclude_path("/workspace_backup/a.py", [r"^/workspace(/|$)"])
 
     assert result is False
