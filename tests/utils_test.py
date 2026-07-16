@@ -211,20 +211,26 @@ def testGetFileContent_whenNoContentIsAvailable_shouldReturnNone() -> None:
     assert content is None
 
 
-def testShouldExcludePath_whenPathStartsWithWorkspacePrefix_shouldReturnTrue() -> None:
-    result = utils.should_exclude_path("/workspace/src/main.py", ["/workspace"])
+def testShouldExcludePath_whenPathMatchesWorkspacePattern_shouldReturnTrue() -> None:
+    result = utils.should_exclude_path("/workspace/src/main.py", [r"^/workspace(/|$)"])
 
     assert result is True
 
 
-def testShouldExcludePath_whenPathDoesNotStartWithPrefix_shouldReturnFalse() -> None:
-    result = utils.should_exclude_path("/tmp/main.py", ["/workspace"])
+def testShouldExcludePath_whenPathDoesNotMatch_shouldReturnFalse() -> None:
+    result = utils.should_exclude_path("/tmp/main.py", [r"^/workspace(/|$)"])
+
+    assert result is False
+
+
+def testShouldExcludePath_whenSimilarPrefixNotUnderWorkspace_shouldReturnFalse() -> None:
+    result = utils.should_exclude_path("/workspace_backup/a.py", [r"^/workspace(/|$)"])
 
     assert result is False
 
 
 def testShouldExcludePath_whenPathIsNone_shouldReturnFalse() -> None:
-    result = utils.should_exclude_path(None, ["/workspace"])
+    result = utils.should_exclude_path(None, [r"^/workspace(/|$)"])
 
     assert result is False
 
@@ -237,5 +243,11 @@ def testShouldExcludePath_whenExcludePathsIsEmpty_shouldReturnFalse() -> None:
 
 def testShouldExcludePath_whenExcludePathsIsNone_shouldReturnFalse() -> None:
     result = utils.should_exclude_path("/workspace/a.py", None)
+
+    assert result is False
+
+
+def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -> None:
+    result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
