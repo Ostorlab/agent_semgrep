@@ -198,10 +198,10 @@ def test_agent_with_exclude_paths(
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[
-                utils_definitions.Arg.build(
+                utils_definitions.Arg(
                     name="exclude_paths",
                     type="array",
-                    value=json.dumps([r"^/workspace(/|$)"]),
+                    value=json.dumps([r"^/workspace(/|$)"]).encode(),
                 )
             ],
             healthcheck_port=random.randint(5000, 6000),
