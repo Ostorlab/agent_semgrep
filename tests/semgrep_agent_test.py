@@ -615,7 +615,7 @@ def testAgentSemgrep_whenRepositoryArchiveAsset_scansSharedCodeVolume(
 
 
 def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
-    test_agent_with_exclude_paths: semgrep_agent.SemgrepAgent,
+    test_agent_with_exclude_path_regexes: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     mocker: plugin.MockerFixture,
@@ -629,7 +629,7 @@ def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
         data={"content": b"public class A {}", "path": "/workspace/src/A.java"},
     )
 
-    test_agent_with_exclude_paths.process(file_message)
+    test_agent_with_exclude_path_regexes.process(file_message)
 
     assert get_content_mock.call_count == 0
     assert run_analysis_mock.call_count == 0

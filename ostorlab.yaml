@@ -63,6 +63,6 @@ args:
   - name: "memory_limit"
     description: "Memory limit for semgrep to use on a single file."
     type: "number"
-  - name: "exclude_paths"
+  - name: "exclude_path_regexes"
     type: "array"
     description: "List of regex patterns; files whose path matches any pattern are skipped."

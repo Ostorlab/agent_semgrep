@@ -111,7 +111,10 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
 
         path = message.data.get("path")
 
-        if utils.should_exclude_path(path, self.args.get("exclude_paths")) is True:
+        if (
+            utils.should_exclude_path(path, self.args.get("exclude_path_regexes"))
+            is True
+        ):
             return
 
         content = utils.get_file_content(message)

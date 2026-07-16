@@ -187,7 +187,7 @@ def test_agent(
 
 
 @pytest.fixture()
-def test_agent_with_exclude_paths(
+def test_agent_with_exclude_path_regexes(
     agent_persist_mock: dict[str | bytes, str | bytes],
 ) -> semgrep_agent.SemgrepAgent:
     """Semgrep agent configured to exclude files under /workspace."""
@@ -199,7 +199,7 @@ def test_agent_with_exclude_paths(
             bus_exchange_topic="NA",
             args=[
                 utils_definitions.Arg(
-                    name="exclude_paths",
+                    name="exclude_path_regexes",
                     type="array",
                     value=json.dumps([r"^/workspace(/|$)"]).encode(),
                 )
