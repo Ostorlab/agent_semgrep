@@ -612,3 +612,23 @@ def testAgentSemgrep_whenRepositoryArchiveAsset_scansSharedCodeVolume(
     test_agent.process(repository_archive_asset_message)
 
     assert run_analysis_mock.call_args.args[0] == semgrep_agent.REPOSITORY_CODE_PATH
+
+
+def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
+    test_agent_with_exclude_paths: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A file whose path matches an exclude pattern is skipped: no scan, no emitted message."""
+    del agent_persist_mock
+    run_analysis_mock = mocker.patch("agent.semgrep_agent._run_analysis")
+    file_message = message.Message.from_data(
+        selector="v3.asset.file",
+        data={"content": b"public class A {}", "path": "/workspace/src/A.java"},
+    )
+
+    test_agent_with_exclude_paths.process(file_message)
+
+    assert run_analysis_mock.call_count == 0
+    assert len(agent_mock) == 0

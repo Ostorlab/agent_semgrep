@@ -185,6 +185,30 @@ def test_agent(
 
 
 @pytest.fixture()
+def test_agent_with_exclude_paths(
+    agent_persist_mock: dict[str | bytes, str | bytes],
+) -> semgrep_agent.SemgrepAgent:
+    """Semgrep agent configured to exclude files under /workspace."""
+    with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
+        definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
+        settings = runtime_definitions.AgentSettings(
+            key="agent/ostorlab/semgrep",
+            bus_url="NA",
+            bus_exchange_topic="NA",
+            args=[
+                {
+                    "name": "exclude_paths",
+                    "type": "array",
+                    "value": [r"^/workspace(/|$)"],
+                }
+            ],
+            healthcheck_port=random.randint(5000, 6000),
+            redis_url="redis://guest:guest@localhost:6379",
+        )
+        return semgrep_agent.SemgrepAgent(definition, settings)
+
+
+@pytest.fixture()
 def vulnerabilities() -> list[dict[str, Any]]:
     vulnz = cast(list[dict[str, Any]], JSON_OUTPUT.get("results"))
 
