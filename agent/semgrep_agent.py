@@ -112,6 +112,9 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         content = utils.get_file_content(message)
         path = message.data.get("path")
 
+        if utils.should_exclude_path(path, self.args.get("exclude_paths")) is True:
+            return
+
         if content is None:
             logger.error("Received empty file.")
             return

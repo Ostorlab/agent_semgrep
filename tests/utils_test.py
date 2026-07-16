@@ -209,3 +209,33 @@ def testGetFileContent_whenNoContentIsAvailable_shouldReturnNone() -> None:
     content = utils.get_file_content(message)
 
     assert content is None
+
+
+def testShouldExcludePath_whenPathStartsWithWorkspacePrefix_shouldReturnTrue() -> None:
+    result = utils.should_exclude_path("/workspace/src/main.py", ["/workspace"])
+
+    assert result is True
+
+
+def testShouldExcludePath_whenPathDoesNotStartWithPrefix_shouldReturnFalse() -> None:
+    result = utils.should_exclude_path("/tmp/main.py", ["/workspace"])
+
+    assert result is False
+
+
+def testShouldExcludePath_whenPathIsNone_shouldReturnFalse() -> None:
+    result = utils.should_exclude_path(None, ["/workspace"])
+
+    assert result is False
+
+
+def testShouldExcludePath_whenExcludePathsIsEmpty_shouldReturnFalse() -> None:
+    result = utils.should_exclude_path("/workspace/a.py", [])
+
+    assert result is False
+
+
+def testShouldExcludePath_whenExcludePathsIsNone_shouldReturnFalse() -> None:
+    result = utils.should_exclude_path("/workspace/a.py", None)
+
+    assert result is False
