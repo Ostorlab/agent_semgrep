@@ -109,8 +109,15 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             self._process_repository_asset(message, memory_limit)
             return
 
-        content = utils.get_file_content(message)
         path = message.data.get("path")
+
+        if (
+            utils.should_exclude_path(path, self.args.get("exclude_path_regexes"))
+            is True
+        ):
+            return
+
+        content = utils.get_file_content(message)
 
         if content is None:
             logger.error("Received empty file.")

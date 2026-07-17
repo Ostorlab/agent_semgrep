@@ -1,5 +1,6 @@
 """conftest for semgrep agent tests"""
 
+import json
 import random
 import pathlib
 from typing import Any, cast
@@ -8,6 +9,7 @@ import pytest
 from ostorlab.agent.message import message
 from ostorlab.agent import definitions as agent_definitions
 from ostorlab.runtimes import definitions as runtime_definitions
+from ostorlab.utils import definitions as utils_definitions
 
 from agent import semgrep_agent
 
@@ -178,6 +180,30 @@ def test_agent(
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[],
+            healthcheck_port=random.randint(5000, 6000),
+            redis_url="redis://guest:guest@localhost:6379",
+        )
+        return semgrep_agent.SemgrepAgent(definition, settings)
+
+
+@pytest.fixture()
+def test_agent_with_exclude_path_regexes(
+    agent_persist_mock: dict[str | bytes, str | bytes],
+) -> semgrep_agent.SemgrepAgent:
+    """Semgrep agent configured to exclude files under /workspace."""
+    with (pathlib.Path(__file__).parent.parent / "ostorlab.yaml").open() as yaml_o:
+        definition = agent_definitions.AgentDefinition.from_yaml(yaml_o)
+        settings = runtime_definitions.AgentSettings(
+            key="agent/ostorlab/semgrep",
+            bus_url="NA",
+            bus_exchange_topic="NA",
+            args=[
+                utils_definitions.Arg(
+                    name="exclude_path_regexes",
+                    type="array",
+                    value=json.dumps([r"^/workspace(/|$)"]).encode(),
+                )
+            ],
             healthcheck_port=random.randint(5000, 6000),
             redis_url="redis://guest:guest@localhost:6379",
         )
