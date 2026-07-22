@@ -1,0 +1,7 @@
+deploy_playstore:
+  extends: .release_config
+  stage: deploy
+  script:
+    - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
+    - mv .secure_files/physera-release.keystore $CI_PROJECT_DIR/app/keystores/
+    - fastlane deploy

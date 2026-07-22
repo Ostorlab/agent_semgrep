@@ -395,20 +395,24 @@ def testAgentSemgrep_whenValidMessage_constructCorrectCommand(
 
     test_agent.process(scan_message_file)
 
-    assert command_mock.call_args.args[0][0] == "opengrep"
-    assert command_mock.call_args.args[0][1] == "scan"
-    assert command_mock.call_args.args[0][2] == "-q"
-    assert command_mock.call_args.args[0][3] == "--config"
-    assert command_mock.call_args.args[0][4] == "auto"
-    assert command_mock.call_args.args[0][5] == "--timeout"
-    assert command_mock.call_args.args[0][6] == "120"
-    assert command_mock.call_args.args[0][7] == "--timeout-threshold"
-    assert command_mock.call_args.args[0][8] == "0"
-    assert command_mock.call_args.args[0][9] == "--max-target-bytes"
-    assert command_mock.call_args.args[0][10] == "524288000"
-    assert command_mock.call_args.args[0][11] == "--max-memory"
-    assert command_mock.call_args.args[0][12] == "2147483648"
-    assert command_mock.call_args.args[0][13] == "--json"
+    command = command_mock.call_args.args[0]
+    assert command[0] == "opengrep"
+    assert command[1] == "scan"
+    assert command[2] == "-q"
+    assert command[3] == "--config"
+    assert command[4] == "auto"
+    # The Ostorlab custom rules directory is loaded on top of the auto ruleset.
+    assert command[5] == "--config"
+    assert command[6] == semgrep_agent.RULES_DIR
+    assert command[7] == "--timeout"
+    assert command[8] == "120"
+    assert command[9] == "--timeout-threshold"
+    assert command[10] == "0"
+    assert command[11] == "--max-target-bytes"
+    assert command[12] == "524288000"
+    assert command[13] == "--max-memory"
+    assert command[14] == "2147483648"
+    assert command[15] == "--json"
 
 
 def testAgentSemgrep_whenIosAsset_addsIosAssetToVulnLocation(

@@ -3,6 +3,7 @@ pytest-cov
 pytest-mock
 requests_mock
 types-requests
+types-PyYAML
 ruff
 mypy
 typing-extensions

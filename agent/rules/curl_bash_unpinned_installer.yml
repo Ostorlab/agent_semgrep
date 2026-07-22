@@ -1,0 +1,32 @@
+rules:
+  - id: ostorlab.supply-chain.curl-bash-unpinned-installer
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      Remote code is downloaded with curl/wget and piped straight into a shell
+      (curl|bash / wget|sh) without any integrity verification. When the source
+      URL targets a mutable ref (a branch such as main/master, HEAD, or any
+      path that is not pinned to an immutable commit SHA/tag), an attacker with
+      write access to the upstream repository or a network MitM can substitute
+      the downloaded script. The piped code executes in the build with no
+      checksum, signature, or cosign check, and --silent suppresses the
+      transfer output that could surface tampering. Pin the URL to an immutable
+      commit SHA, drop --silent in favour of --fail --show-error so HTTP errors
+      abort the pipeline, and verify a sha256 digest (and a GPG/cosign
+      signature when upstream signs) before executing the script.
+    metadata:
+      category: security
+      confidence: HIGH
+      likelihood: HIGH
+      impact: HIGH
+      cwe:
+        - "CWE-494: Download of Code Without Integrity Check"
+        - "CWE-829: Inclusion of Functionality from Untrusted Control Sphere"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      technology:
+        - yaml
+      references:
+        - https://cwe.mitre.org/data/definitions/494.html
+        - https://cwe.mitre.org/data/definitions/829.html
+    pattern-regex: '(?im)^[ \t]*(?:-[ \t]+)?(?:curl|wget)\b[^\n|]*\|\s*(?:sudo[ \t]+)?(?:bash|sh|zsh|dash|ksh)\b'

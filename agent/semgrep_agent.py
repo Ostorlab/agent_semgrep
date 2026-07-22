@@ -2,6 +2,7 @@
 
 import json
 import logging
+import pathlib
 import subprocess
 import tempfile
 from typing import Any
@@ -35,6 +36,11 @@ DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 REPOSITORY_CODE_PATH = "/code"
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
+# Directory bundling Ostorlab custom semgrep rules that are applied on top of
+# the default `auto` registry ruleset. Resolved relative to this module so it
+# works both inside the Docker image (`/app/agent/rules`) and from a source
+# checkout.
+RULES_DIR = str(pathlib.Path(__file__).resolve().parent / "rules")
 
 FILE_TYPE_WHITELIST = (
     ".js",
@@ -60,6 +66,8 @@ def _run_analysis(
         "-q",
         "--config",
         "auto",
+        "--config",
+        RULES_DIR,
         "--timeout",
         str(command_timeout),
         "--timeout-threshold",
