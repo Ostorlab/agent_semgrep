@@ -4,6 +4,7 @@ pytest-mock
 requests_mock
 types-requests
 types-PyYAML
+PyYAML
 ruff
 mypy
 typing-extensions
