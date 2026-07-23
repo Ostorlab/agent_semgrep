@@ -668,8 +668,7 @@ def testProcess_whenRepositoryArchiveAsset_shouldScanAssetDirectory(
     test_agent.process(repository_archive_asset_message)
 
     expected_scan_path: str = (
-        f"{semgrep_agent.ASSETS_CODE_PATH}/"
-        "62f54a92-6d5f-4ce8-848e-adf13ff79fee"
+        f"{semgrep_agent.ASSETS_CODE_PATH}/62f54a92-6d5f-4ce8-848e-adf13ff79fee"
     )
     assert command_mock.call_args.args[0][-1] == expected_scan_path
 
