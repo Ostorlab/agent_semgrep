@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import subprocess
 import tempfile
 from typing import Any
@@ -32,7 +33,7 @@ TIMEOUT_THRESHOLD = 0
 FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
-REPOSITORY_CODE_PATH = "/code"
+ASSETS_CODE_PATH = "/code"
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
@@ -174,10 +175,16 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             else:
                 logger.error("Semgrep completed with errors %s", stderr)
 
-    def _scan_repository_code(self, memory_limit: int) -> dict[str, Any] | None:
-        """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
+    def _scan_repository_code(
+        self, memory_limit: int, asset_directory: str | None = None
+    ) -> dict[str, Any] | None:
+        """Scan source code extracted to the shared /code volume."""
+        repository_code_path: str = ASSETS_CODE_PATH
+        if asset_directory is not None and len(asset_directory) > 0:
+            repository_code_path = os.path.join(ASSETS_CODE_PATH, asset_directory)
+
         output = _run_analysis(
-            REPOSITORY_CODE_PATH,
+            repository_code_path,
             memory_limit,
             command_timeout=REPOSITORY_COMMAND_TIMEOUT,
         )
@@ -196,14 +203,22 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
 
     def _process_repository_asset(self, message: m.Message, memory_limit: int) -> None:
         """Scan a repository asset and report against its repository URL."""
-        json_output = self._scan_repository_code(memory_limit)
+        repository_url: str | None = message.data.get("repository_url")
+        commit_hash: str | None = message.data.get("commit_hash")
+        asset_directory: str | None = None
+        if repository_url is not None and commit_hash is not None:
+            asset_directory = utils.build_repository_asset_directory(
+                repository_url, commit_hash
+            )
+
+        json_output = self._scan_repository_code(memory_limit, asset_directory)
         if json_output is None:
             return
 
         self._emit_results(
             json_output=json_output,
-            repository_url=message.data.get("repository_url"),
-            commit_hash=message.data.get("commit_hash"),
+            repository_url=repository_url,
+            commit_hash=commit_hash,
             provider=message.data.get("provider"),
         )
 
@@ -211,13 +226,20 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         self, message: m.Message, memory_limit: int
     ) -> None:
         """Scan a repository archive asset and report against its content URL, it carries no repository URL, commit hash nor provider."""
-        json_output = self._scan_repository_code(memory_limit)
+        content_url: str | None = message.data.get("content_url")
+        asset_directory: str | None = None
+        if content_url is not None:
+            asset_directory = utils.build_repository_archive_asset_directory(
+                content_url
+            )
+
+        json_output = self._scan_repository_code(memory_limit, asset_directory)
         if json_output is None:
             return
 
         self._emit_results(
             json_output=json_output,
-            archive_content_url=message.data.get("content_url"),
+            archive_content_url=content_url,
         )
 
     def _emit_results(
