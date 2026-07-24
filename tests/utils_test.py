@@ -1,9 +1,9 @@
 """Unittests for Semgrep Agent Utilities"""
 
 from typing import Any
-import requests
 
 import pytest
+import requests
 import requests_mock as reqs_mock
 from ostorlab.agent.message import message as m
 

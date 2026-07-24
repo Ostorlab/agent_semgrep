@@ -1,30 +1,27 @@
 """Utilities for Semgrep Agent"""
 
 import dataclasses
-import mimetypes
-import requests
+import json
 import logging
+import mimetypes
 import os
 import re
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 from urllib import parse
-import json
 
-
-import tenacity
 import magic
+import requests
+import tenacity
 from ostorlab.agent.kb import kb
+from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import (
     agent_report_vulnerability_mixin as vulnerability_mixin,
 )
-from ostorlab.agent.message import message as m
+from ostorlab.assets import android_store, harmonyos_store, ios_store
 from ostorlab.assets import asset as os_asset
-from ostorlab.assets import ios_store
-from ostorlab.assets import android_store
-from ostorlab.assets import harmonyos_store
 from ostorlab.assets import repository as repository_asset
 from ostorlab.assets import repository_archive as repository_archive_asset
-
 
 LINE_SIZE_MAX = 5000
 DOWNLOAD_REQUEST_TIMEOUT = 60

@@ -1,13 +1,13 @@
 """conftest for semgrep agent tests"""
 
 import json
-import random
 import pathlib
+import random
 from typing import Any, cast
 
 import pytest
-from ostorlab.agent.message import message
 from ostorlab.agent import definitions as agent_definitions
+from ostorlab.agent.message import message
 from ostorlab.runtimes import definitions as runtime_definitions
 from ostorlab.utils import definitions as utils_definitions
 
