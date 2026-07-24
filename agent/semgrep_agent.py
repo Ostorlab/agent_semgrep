@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 from typing import Any
@@ -34,6 +35,7 @@ FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
 ASSETS_CODE_PATH = "/code"
+ASSET_DIRECTORY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
@@ -181,6 +183,13 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """Scan source code extracted to the shared /code volume."""
         repository_code_path: str = ASSETS_CODE_PATH
         if asset_directory is not None and len(asset_directory) > 0:
+            if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
+                logger.error(
+                    "Refusing to scan invalid repository asset directory `%s`.",
+                    asset_directory,
+                )
+                return None
+
             repository_code_path = os.path.realpath(
                 os.path.join(ASSETS_CODE_PATH, asset_directory)
             )

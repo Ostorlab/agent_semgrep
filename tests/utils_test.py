@@ -239,9 +239,7 @@ def testBuildRepositoryAssetDirectory_whenRepositoryUrlHasSuffixes_returnsAssetD
 def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_returnsAssetDirectory() -> (
     None
 ):
-    content_url = (
-        "https://example.com/uploads/cc3714?X-Goog-Algorithm=GOO"
-    )
+    content_url = "https://example.com/uploads/cc3714?X-Goog-Algorithm=GOO"
 
     asset_directory = utils.build_repository_archive_asset_directory(content_url)
 

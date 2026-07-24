@@ -632,7 +632,9 @@ def testProcess_whenRepositoryAsset_shouldScanAssetDirectory(
 
     test_agent.process(repository_asset_message)
 
-    expected_scan_path: str = f"{semgrep_agent.ASSETS_CODE_PATH}/repo_{repository_commit_hash}"
+    expected_scan_path: str = (
+        f"{semgrep_agent.ASSETS_CODE_PATH}/repo_{repository_commit_hash}"
+    )
     assert command_mock.call_args.args[0][-1] == expected_scan_path
 
 
@@ -649,8 +651,7 @@ def testProcess_whenRepositoryArchiveAsset_shouldScanAssetDirectory(
         selector="v3.asset.file.repository_archive",
         data={
             "content_url": (
-                "https://example.com/uploads/"
-                "62f54a92-6d5f-4ce8-848e-adf13ff79fee"
+                "https://example.com/uploads/62f54a92-6d5f-4ce8-848e-adf13ff79fee"
             ),
             "path": "repo-main.zip",
         },
