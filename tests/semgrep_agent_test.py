@@ -520,6 +520,7 @@ def testSemgrepAgent_whenRepositoryMessageHasNoProvider_shouldEmitVulnerabilityW
     repository_commit_hash: str,
     mocker: plugin.MockerFixture,
 ) -> None:
+    """Repository assets without provider metadata default to a generic Git location."""
     repository_asset_message = message.Message.from_data(
         "v3.asset.repository",
         data={

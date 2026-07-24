@@ -229,6 +229,7 @@ def testBuildRepositoryAssetDirectory_whenRepositoryUrlHasSuffixes_returnsAssetD
     expected_repository_name: str,
     repository_commit_hash: str,
 ) -> None:
+    """Repository URLs with .git or trailing slash use the bare repo name."""
     asset_directory = utils.build_repository_asset_directory(
         repository_url, repository_commit_hash
     )
@@ -239,6 +240,7 @@ def testBuildRepositoryAssetDirectory_whenRepositoryUrlHasSuffixes_returnsAssetD
 def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_returnsAssetDirectory() -> (
     None
 ):
+    """Archive content URL query strings are ignored when deriving the directory."""
     content_url = "https://example.com/uploads/cc3714?X-Goog-Algorithm=GOO"
 
     asset_directory = utils.build_repository_archive_asset_directory(content_url)
@@ -249,6 +251,7 @@ def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_return
 def testBuildRepositoryArchiveAssetDirectory_whenUploadUrlHasPathAfterId_returnsUploadId() -> (
     None
 ):
+    """Archive content URLs with extra path segments use the upload id."""
     content_url = "https://example.com/uploads/cc3714/archive/main.zip"
 
     asset_directory = utils.build_repository_archive_asset_directory(content_url)
