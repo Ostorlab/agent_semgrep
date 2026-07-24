@@ -181,7 +181,19 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """Scan source code extracted to the shared /code volume."""
         repository_code_path: str = ASSETS_CODE_PATH
         if asset_directory is not None and len(asset_directory) > 0:
-            repository_code_path = os.path.join(ASSETS_CODE_PATH, asset_directory)
+            repository_code_path = os.path.realpath(
+                os.path.join(ASSETS_CODE_PATH, asset_directory)
+            )
+            assets_code_path = os.path.realpath(ASSETS_CODE_PATH)
+            if os.path.commonpath([assets_code_path, repository_code_path]) != (
+                assets_code_path
+            ):
+                logger.error(
+                    "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                    ASSETS_CODE_PATH,
+                    asset_directory,
+                )
+                return None
 
         output = _run_analysis(
             repository_code_path,
@@ -210,6 +222,11 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             asset_directory = utils.build_repository_asset_directory(
                 repository_url, commit_hash
             )
+        else:
+            logger.warning(
+                "Repository asset is missing repository_url or commit_hash; falling back to `%s`.",
+                ASSETS_CODE_PATH,
+            )
 
         json_output = self._scan_repository_code(memory_limit, asset_directory)
         if json_output is None:
@@ -231,6 +248,11 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         if content_url is not None:
             asset_directory = utils.build_repository_archive_asset_directory(
                 content_url
+            )
+        else:
+            logger.warning(
+                "Repository archive asset is missing content_url; falling back to `%s`.",
+                ASSETS_CODE_PATH,
             )
 
         json_output = self._scan_repository_code(memory_limit, asset_directory)

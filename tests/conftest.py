@@ -139,12 +139,18 @@ def scan_message_compressed_js_file() -> message.Message:
 
 
 @pytest.fixture
-def repository_asset_message() -> message.Message:
+def repository_commit_hash() -> str:
+    """Return a commit hash used by repository asset tests."""
+    return "a1a10cdbc6551ba359169a3033f193b7f8c1b95d"
+
+
+@pytest.fixture
+def repository_asset_message(repository_commit_hash: str) -> message.Message:
     """Creates a dummy message of type v3.asset.repository for testing purposes."""
     selector = "v3.asset.repository"
     msg_data = {
         "repository_url": "https://github.com/org/repo.git",
-        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        "commit_hash": repository_commit_hash,
         "provider": "GITHUB",
     }
     return message.Message.from_data(selector, data=msg_data)

@@ -211,6 +211,43 @@ def testGetFileContent_whenNoContentIsAvailable_shouldReturnNone() -> None:
     assert content is None
 
 
+@pytest.mark.parametrize(
+    ("repository_url", "expected_repository_name"),
+    [
+        (
+            "https://github.com/org/repo.git",
+            "repo",
+        ),
+        (
+            "https://github.com/org/repo/",
+            "repo",
+        ),
+    ],
+)
+def testBuildRepositoryAssetDirectory_whenRepositoryUrlHasSuffixes_returnsAssetDirectory(
+    repository_url: str,
+    expected_repository_name: str,
+    repository_commit_hash: str,
+) -> None:
+    asset_directory = utils.build_repository_asset_directory(
+        repository_url, repository_commit_hash
+    )
+
+    assert asset_directory == f"{expected_repository_name}_{repository_commit_hash}"
+
+
+def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_returnsAssetDirectory() -> (
+    None
+):
+    content_url = (
+        "https://example.com/uploads/cc3714?X-Goog-Algorithm=GOO"
+    )
+
+    asset_directory = utils.build_repository_archive_asset_directory(content_url)
+
+    assert asset_directory == "cc3714"
+
+
 def testShouldExcludePath_whenPathMatchesWorkspacePattern_shouldReturnTrue() -> None:
     result = utils.should_exclude_path("/workspace/src/main.py", [r"^/workspace(/|$)"])
 

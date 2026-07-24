@@ -488,6 +488,7 @@ def testAgentSemgrep_whenRepositoryAsset_emitsBackVulnerabilityWithRepositoryLoc
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     repository_asset_message: message.Message,
+    repository_commit_hash: str,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Ensure repository assets are scanned and emit repository vulnerability location."""
@@ -503,7 +504,7 @@ def testAgentSemgrep_whenRepositoryAsset_emitsBackVulnerabilityWithRepositoryLoc
     assert vuln["vulnerability_location"] is not None
     assert vuln["vulnerability_location"]["repository"] == {
         "repository_url": "https://github.com/org/repo.git",
-        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        "commit_hash": repository_commit_hash,
         "provider": "GITHUB",
     }
     assert vuln["vulnerability_location"]["metadata"][0]["type"] == "FILE_PATH"
@@ -516,13 +517,14 @@ def testAgentSemgrep_whenRepositoryAsset_emitsBackVulnerabilityWithRepositoryLoc
 def testSemgrepAgent_whenRepositoryMessageHasNoProvider_shouldEmitVulnerabilityWithGitProvider(
     test_agent: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
+    repository_commit_hash: str,
     mocker: plugin.MockerFixture,
 ) -> None:
     repository_asset_message = message.Message.from_data(
         "v3.asset.repository",
         data={
             "repository_url": "https://github.com/org/repo.git",
-            "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+            "commit_hash": repository_commit_hash,
         },
     )
 
@@ -540,7 +542,7 @@ def testSemgrepAgent_whenRepositoryMessageHasNoProvider_shouldEmitVulnerabilityW
     assert vuln["vulnerability_location"] is not None
     assert vuln["vulnerability_location"]["repository"] == {
         "repository_url": "https://github.com/org/repo.git",
-        "commit_hash": "a1a10cdbc6551ba359169a3033f193b7f8c1b95d",
+        "commit_hash": repository_commit_hash,
         "provider": "GIT",
     }
 
@@ -612,6 +614,7 @@ def testProcess_whenRepositoryAsset_shouldScanAssetDirectory(
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     repository_asset_message: message.Message,
+    repository_commit_hash: str,
     mocker: plugin.MockerFixture,
 ) -> None:
     """Ensure repository assets are scanned in their extracted asset directory."""
@@ -629,10 +632,7 @@ def testProcess_whenRepositoryAsset_shouldScanAssetDirectory(
 
     test_agent.process(repository_asset_message)
 
-    expected_scan_path: str = (
-        f"{semgrep_agent.ASSETS_CODE_PATH}/"
-        "repo_a1a10cdbc6551ba359169a3033f193b7f8c1b95d"
-    )
+    expected_scan_path: str = f"{semgrep_agent.ASSETS_CODE_PATH}/repo_{repository_commit_hash}"
     assert command_mock.call_args.args[0][-1] == expected_scan_path
 
 
@@ -649,7 +649,7 @@ def testProcess_whenRepositoryArchiveAsset_shouldScanAssetDirectory(
         selector="v3.asset.file.repository_archive",
         data={
             "content_url": (
-                "https://storage.googleapis.com/ostorlabapps/uploads/"
+                "https://example.com/uploads/"
                 "62f54a92-6d5f-4ce8-848e-adf13ff79fee"
             ),
             "path": "repo-main.zip",
@@ -671,6 +671,53 @@ def testProcess_whenRepositoryArchiveAsset_shouldScanAssetDirectory(
         f"{semgrep_agent.ASSETS_CODE_PATH}/62f54a92-6d5f-4ce8-848e-adf13ff79fee"
     )
     assert command_mock.call_args.args[0][-1] == expected_scan_path
+
+
+def testProcess_whenRepositoryAssetDirectoryEscapesAssetsCodePath_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Repository asset directories outside /code are rejected before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch("subprocess.run")
+    repository_asset_message: message.Message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={
+            "repository_url": "https://github.com/org/repo.git",
+            "commit_hash": "../secret",
+            "provider": "GITHUB",
+        },
+    )
+
+    test_agent.process(repository_asset_message)
+
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryArchiveAssetDirectoryEscapesAssetsCodePath_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Repository archive asset directories outside /code are rejected before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch("subprocess.run")
+    repository_archive_asset_message: message.Message = message.Message.from_data(
+        selector="v3.asset.file.repository_archive",
+        data={
+            "content_url": "https://example.com/uploads/..",
+            "path": "repo-main.zip",
+        },
+    )
+
+    test_agent.process(repository_archive_asset_message)
+
+    command_mock.assert_not_called()
 
 
 def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
