@@ -246,6 +246,16 @@ def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_return
     assert asset_directory == "cc3714"
 
 
+def testBuildRepositoryArchiveAssetDirectory_whenUploadUrlHasPathAfterId_returnsUploadId() -> (
+    None
+):
+    content_url = "https://example.com/uploads/cc3714/archive/main.zip"
+
+    asset_directory = utils.build_repository_archive_asset_directory(content_url)
+
+    assert asset_directory == "cc3714"
+
+
 def testShouldExcludePath_whenPathMatchesWorkspacePattern_shouldReturnTrue() -> None:
     result = utils.should_exclude_path("/workspace/src/main.py", [r"^/workspace(/|$)"])
 

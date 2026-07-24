@@ -65,9 +65,19 @@ def build_repository_archive_asset_directory(content_url: str) -> str:
         content_url: URL of the uploaded repository archive.
 
     Returns:
-        Last path segment of the archive content URL.
+        Path segment immediately after uploads, or the last path segment.
     """
     parsed_url: parse.ParseResult = parse.urlparse(content_url)
+    path_segments: list[str] = [
+        segment for segment in parsed_url.path.split("/") if len(segment) > 0
+    ]
+    try:
+        uploads_index: int = path_segments.index("uploads")
+    except ValueError:
+        return os.path.basename(parsed_url.path.rstrip("/"))
+
+    if uploads_index + 1 < len(path_segments):
+        return path_segments[uploads_index + 1]
     return os.path.basename(parsed_url.path.rstrip("/"))
 
 
