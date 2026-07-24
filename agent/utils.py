@@ -1,30 +1,27 @@
 """Utilities for Semgrep Agent"""
 
 import dataclasses
-import mimetypes
-import requests
+import json
 import logging
+import mimetypes
 import os
 import re
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 from urllib import parse
-import json
 
-
-import tenacity
 import magic
+import requests
+import tenacity
 from ostorlab.agent.kb import kb
+from ostorlab.agent.message import message as m
 from ostorlab.agent.mixins import (
     agent_report_vulnerability_mixin as vulnerability_mixin,
 )
-from ostorlab.agent.message import message as m
+from ostorlab.assets import android_store, harmonyos_store, ios_store
 from ostorlab.assets import asset as os_asset
-from ostorlab.assets import ios_store
-from ostorlab.assets import android_store
-from ostorlab.assets import harmonyos_store
 from ostorlab.assets import repository as repository_asset
 from ostorlab.assets import repository_archive as repository_archive_asset
-
 
 LINE_SIZE_MAX = 5000
 DOWNLOAD_REQUEST_TIMEOUT = 60
@@ -38,6 +35,50 @@ RISK_RATING_MAPPING = {
 }
 
 logger = logging.getLogger(__name__)
+
+
+def build_repository_asset_directory(repository_url: str, commit_hash: str) -> str:
+    """Build the repository extraction folder name used in multi-asset scans.
+
+    Args:
+        repository_url: URL of the repository asset.
+        commit_hash: Commit hash checked out for the repository asset.
+
+    Returns:
+        Folder name composed from the repository name and commit hash.
+    """
+    parsed_url: parse.ParseResult = parse.urlparse(repository_url)
+    repository_path: str = parsed_url.path
+    if len(repository_path) == 0:
+        repository_path = repository_url
+
+    repository_name: str = os.path.basename(repository_path.rstrip("/"))
+    if repository_name.endswith(".git") is True:
+        repository_name = repository_name[: -len(".git")]
+    return f"{repository_name}_{commit_hash}"
+
+
+def build_repository_archive_asset_directory(content_url: str) -> str:
+    """Build the archive extraction folder name from its uploaded content URL.
+
+    Args:
+        content_url: URL of the uploaded repository archive.
+
+    Returns:
+        Path segment immediately after uploads, or the last path segment.
+    """
+    parsed_url: parse.ParseResult = parse.urlparse(content_url)
+    path_segments: list[str] = [
+        segment for segment in parsed_url.path.split("/") if len(segment) > 0
+    ]
+    try:
+        uploads_index: int = path_segments.index("uploads")
+    except ValueError:
+        return os.path.basename(parsed_url.path.rstrip("/"))
+
+    if uploads_index + 1 < len(path_segments):
+        return path_segments[uploads_index + 1]
+    return os.path.basename(parsed_url.path.rstrip("/"))
 
 
 def should_exclude_path(

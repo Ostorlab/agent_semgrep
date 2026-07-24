@@ -1,9 +1,9 @@
 """Unittests for Semgrep Agent Utilities"""
 
 from typing import Any
-import requests
 
 import pytest
+import requests
 import requests_mock as reqs_mock
 from ostorlab.agent.message import message as m
 
@@ -209,6 +209,54 @@ def testGetFileContent_whenNoContentIsAvailable_shouldReturnNone() -> None:
     content = utils.get_file_content(message)
 
     assert content is None
+
+
+@pytest.mark.parametrize(
+    ("repository_url", "expected_repository_name"),
+    [
+        (
+            "https://github.com/org/repo.git",
+            "repo",
+        ),
+        (
+            "https://github.com/org/repo/",
+            "repo",
+        ),
+    ],
+)
+def testBuildRepositoryAssetDirectory_whenRepositoryUrlHasSuffixes_returnsAssetDirectory(
+    repository_url: str,
+    expected_repository_name: str,
+    repository_commit_hash: str,
+) -> None:
+    """Repository URLs with .git or trailing slash use the bare repo name."""
+    asset_directory = utils.build_repository_asset_directory(
+        repository_url, repository_commit_hash
+    )
+
+    assert asset_directory == f"{expected_repository_name}_{repository_commit_hash}"
+
+
+def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_returnsAssetDirectory() -> (
+    None
+):
+    """Archive content URL query strings are ignored when deriving the directory."""
+    content_url = "https://example.com/uploads/cc3714?X-Goog-Algorithm=GOO"
+
+    asset_directory = utils.build_repository_archive_asset_directory(content_url)
+
+    assert asset_directory == "cc3714"
+
+
+def testBuildRepositoryArchiveAssetDirectory_whenUploadUrlHasPathAfterId_returnsUploadId() -> (
+    None
+):
+    """Archive content URLs with extra path segments use the upload id."""
+    content_url = "https://example.com/uploads/cc3714/archive/main.zip"
+
+    asset_directory = utils.build_repository_archive_asset_directory(content_url)
+
+    assert asset_directory == "cc3714"
 
 
 def testShouldExcludePath_whenPathMatchesWorkspacePattern_shouldReturnTrue() -> None:
