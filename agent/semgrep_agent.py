@@ -226,13 +226,19 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         repository_url: str | None = message.data.get("repository_url")
         commit_hash: str | None = message.data.get("commit_hash")
         asset_directory: str | None = None
-        if repository_url is not None and commit_hash is not None:
-            asset_directory = utils.build_repository_asset_directory(
+        if (
+            repository_url is not None
+            and repository_url != ""
+            and commit_hash is not None
+            and commit_hash != ""
+        ):
+            asset_directory = utils.construct_repository_asset_directory_name(
                 repository_url, commit_hash
             )
         else:
             logger.warning(
-                "Repository asset is missing repository_url or commit_hash; falling back to `%s`.",
+                "Repository asset is missing repository_url or commit_hash; "
+                "falling back to `%s`.",
                 ASSETS_CODE_PATH,
             )
 
@@ -253,8 +259,8 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         """Scan a repository archive asset and report against its content URL, it carries no repository URL, commit hash nor provider."""
         content_url: str | None = message.data.get("content_url")
         asset_directory: str | None = None
-        if content_url is not None:
-            asset_directory = utils.build_repository_archive_asset_directory(
+        if content_url is not None and content_url != "":
+            asset_directory = utils.construct_repository_archive_asset_directory_name(
                 content_url
             )
         else:

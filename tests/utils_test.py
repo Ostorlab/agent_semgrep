@@ -224,37 +224,54 @@ def testGetFileContent_whenNoContentIsAvailable_shouldReturnNone() -> None:
         ),
     ],
 )
-def testBuildRepositoryAssetDirectory_whenRepositoryUrlHasSuffixes_returnsAssetDirectory(
+def testConstructRepositoryAssetDirectoryName_whenRepositoryUrlHasSuffixes_returnsAssetDirectory(
     repository_url: str,
     expected_repository_name: str,
     repository_commit_hash: str,
 ) -> None:
     """Repository URLs with .git or trailing slash use the bare repo name."""
-    asset_directory = utils.build_repository_asset_directory(
+    asset_directory = utils.construct_repository_asset_directory_name(
         repository_url, repository_commit_hash
     )
 
     assert asset_directory == f"{expected_repository_name}_{repository_commit_hash}"
 
 
-def testBuildRepositoryArchiveAssetDirectory_whenContentUrlHasQueryString_returnsAssetDirectory() -> (
+def testConstructRepositoryAssetDirectoryName_whenRepositoryUrlHasNoSuffix_returnsAssetDirectory(
+    repository_commit_hash: str,
+) -> None:
+    """Repository URLs without .git or trailing slash still derive the repo name."""
+    repository_url = "https://github.com/org/repo"
+
+    asset_directory = utils.construct_repository_asset_directory_name(
+        repository_url, repository_commit_hash
+    )
+
+    assert asset_directory == f"repo_{repository_commit_hash}"
+
+
+def testConstructRepositoryArchiveAssetDirectoryName_whenContentUrlHasQueryString_returnsAssetDirectory() -> (
     None
 ):
     """Archive content URL query strings are ignored when deriving the directory."""
     content_url = "https://example.com/uploads/cc3714?X-Goog-Algorithm=GOO"
 
-    asset_directory = utils.build_repository_archive_asset_directory(content_url)
+    asset_directory = utils.construct_repository_archive_asset_directory_name(
+        content_url
+    )
 
     assert asset_directory == "cc3714"
 
 
-def testBuildRepositoryArchiveAssetDirectory_whenUploadUrlHasPathAfterId_returnsUploadId() -> (
+def testConstructRepositoryArchiveAssetDirectoryName_whenUploadUrlHasPathAfterId_returnsUploadId() -> (
     None
 ):
     """Archive content URLs with extra path segments use the upload id."""
     content_url = "https://example.com/uploads/cc3714/archive/main.zip"
 
-    asset_directory = utils.build_repository_archive_asset_directory(content_url)
+    asset_directory = utils.construct_repository_archive_asset_directory_name(
+        content_url
+    )
 
     assert asset_directory == "cc3714"
 

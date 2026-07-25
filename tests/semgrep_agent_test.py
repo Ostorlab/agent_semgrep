@@ -722,6 +722,63 @@ def testProcess_whenRepositoryArchiveAssetDirectoryEscapesAssetsCodePath_shouldN
     command_mock.assert_not_called()
 
 
+def testProcess_whenRepositoryAssetHasEmptyUrlOrCommitHash_shouldFallBackToSharedCodePath(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_commit_hash: str,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """Empty repository_url or commit_hash fall back to the shared /code path."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=EMPTY_JSON_OUTPUT,
+            stderr=EMPTY_ERROR_MESSAGE,
+        ),
+    )
+    repository_asset_message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={"repository_url": "", "commit_hash": repository_commit_hash},
+    )
+
+    test_agent.process(repository_asset_message)
+
+    assert command_mock.call_args.args[0][-1] == semgrep_agent.ASSETS_CODE_PATH
+
+
+def testProcess_whenRepositoryArchiveAssetHasEmptyContentUrl_shouldFallBackToSharedCodePath(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """An empty content_url falls back to the shared /code path instead of scanning silently."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=EMPTY_JSON_OUTPUT,
+            stderr=EMPTY_ERROR_MESSAGE,
+        ),
+    )
+    repository_archive_asset_message = message.Message.from_data(
+        selector="v3.asset.file.repository_archive",
+        data={"content_url": "", "path": "repo-main.zip"},
+    )
+
+    test_agent.process(repository_archive_asset_message)
+
+    assert command_mock.call_args.args[0][-1] == semgrep_agent.ASSETS_CODE_PATH
+
+
 def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
     test_agent_with_exclude_path_regexes: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
