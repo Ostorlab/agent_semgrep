@@ -1,5 +1,6 @@
 """Unittests for Semgrep agent."""
 
+import pathlib
 import subprocess
 
 from ostorlab.agent.message import message
@@ -716,6 +717,78 @@ def testProcess_whenRepositoryArchiveAssetDirectoryEscapesAssetsCodePath_shouldN
     )
 
     test_agent.process(repository_archive_asset_message)
+
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryAssetDirectorySymlinkEscapesAssetsCodePath_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: pathlib.Path,
+) -> None:
+    """A safe asset directory name that is a symlink escaping `/code` is refused.
+
+    Unlike a traversal-style name (rejected earlier by
+    `ASSET_DIRECTORY_PATTERN`), `repo_abc` passes the safe-name regex. The
+    `commonpath` containment check resolved through `realpath` is what catches
+    the escape, so this test exercises that guard specifically.
+    """
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    outside_path = tmp_path / "outside"
+    outside_path.mkdir()
+    # `repo_abc` looks like a valid asset directory but points outside `/code`.
+    (shared_code_path / "repo_abc").symlink_to(outside_path)
+    mocker.patch("agent.semgrep_agent.ASSETS_CODE_PATH", str(shared_code_path))
+    command_mock = mocker.patch("subprocess.run")
+    repository_asset_message: message.Message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={
+            "repository_url": "https://github.com/org/repo.git",
+            "commit_hash": "abc",
+            "provider": "GITHUB",
+        },
+    )
+
+    test_agent.process(repository_asset_message)
+
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryAssetDirectorySymlinkToAssetsCodeRoot_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+    tmp_path: pathlib.Path,
+) -> None:
+    """A safe asset directory name symlinked to the shared `/code` root is refused.
+
+    A symlink such as `/code/repo_abc -> /code` resolves to `/code` itself,
+    which would otherwise pass the `commonpath` containment check and scan
+    every extracted asset. The strict-descendant guard refuses it.
+    """
+    del agent_mock
+    del agent_persist_mock
+    shared_code_path = tmp_path / "code"
+    shared_code_path.mkdir()
+    (shared_code_path / "repo_abc").symlink_to(shared_code_path)
+    mocker.patch("agent.semgrep_agent.ASSETS_CODE_PATH", str(shared_code_path))
+    command_mock = mocker.patch("subprocess.run")
+    repository_asset_message: message.Message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={
+            "repository_url": "https://github.com/org/repo.git",
+            "commit_hash": "abc",
+            "provider": "GITHUB",
+        },
+    )
+
+    test_agent.process(repository_asset_message)
 
     command_mock.assert_not_called()
 

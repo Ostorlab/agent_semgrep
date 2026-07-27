@@ -185,9 +185,10 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             memory_limit: Maximum memory the Semgrep process may use.
             asset_directory: Single path component naming the extracted asset
                 directory under `/code`. It is validated against a safe-name
-                pattern and a containment check as defense in depth before any
-                scan runs, so a malformed or traversal-style value can never
-                escape `/code` or scan the wrong target.
+                pattern and containment checks run both before and after
+                resolving symlinks, as defense in depth before any scan runs,
+                so a malformed, traversal-style, or symlinked value can never
+                escape `/code`, scan the shared root, or scan the wrong target.
         """
         if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
             logger.error(
@@ -196,13 +197,33 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             )
             return None
 
-        repository_code_path: str = os.path.realpath(
+        assets_code_path: str = os.path.normpath(ASSETS_CODE_PATH)
+        unresolved_repository_code_path: str = os.path.normpath(
             os.path.join(ASSETS_CODE_PATH, asset_directory)
         )
-        assets_code_path: str = os.path.realpath(ASSETS_CODE_PATH)
+        # Validate the unresolved path before resolving symlinks: a symlinked
+        # asset directory such as `/code/repo_x -> /code` would otherwise pass
+        # the post-realpath check and cause a broad `/code` scan.
         if (
-            os.path.commonpath([assets_code_path, repository_code_path])
+            os.path.commonpath([assets_code_path, unresolved_repository_code_path])
             != assets_code_path
+        ):
+            logger.error(
+                "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                ASSETS_CODE_PATH,
+                asset_directory,
+            )
+            return None
+
+        repository_code_path: str = os.path.realpath(unresolved_repository_code_path)
+        real_assets_code_path: str = os.path.realpath(assets_code_path)
+        # Require the resolved path to be a strict descendant of the shared
+        # code path: a symlinked asset directory such as `/code/repo_x -> /code`
+        # would resolve to `/code` itself and cause a broad scan of every asset.
+        if (
+            repository_code_path == real_assets_code_path
+            or os.path.commonpath([real_assets_code_path, repository_code_path])
+            != real_assets_code_path
         ):
             logger.error(
                 "Refusing to scan repository asset directory outside `%s`: `%s`.",
