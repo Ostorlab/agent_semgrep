@@ -779,6 +779,55 @@ def testProcess_whenRepositoryArchiveAssetHasEmptyContentUrl_shouldFallBackToSha
     assert command_mock.call_args.args[0][-1] == semgrep_agent.ASSETS_CODE_PATH
 
 
+def testProcess_whenRepositoryUrlHasNoPath_shouldRejectInvalidAssetDirectoryAndNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_commit_hash: str,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A repository URL with no path yields a directory name starting with `_` that is rejected."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch("subprocess.run")
+    repository_asset_message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={
+            "repository_url": "https://github.com",
+            "commit_hash": repository_commit_hash,
+            "provider": "GITHUB",
+        },
+    )
+
+    test_agent.process(repository_asset_message)
+
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryAssetHasEmptyUrl_emitsVulnerabilityWithoutRepositoryLocation(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_commit_hash: str,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """An empty repository_url is normalized to None so no repository asset is attached to the location."""
+    del agent_persist_mock
+    mocker.patch(
+        "agent.semgrep_agent._run_analysis",
+        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
+    )
+    repository_asset_message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={"repository_url": "", "commit_hash": repository_commit_hash},
+    )
+
+    test_agent.process(repository_asset_message)
+
+    assert len(agent_mock) > 0
+    assert agent_mock[0].data.get("vulnerability_location") is None
+
+
 def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
     test_agent_with_exclude_path_regexes: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],

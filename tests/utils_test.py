@@ -276,6 +276,19 @@ def testConstructRepositoryArchiveAssetDirectoryName_whenUploadUrlHasPathAfterId
     assert asset_directory == "cc3714"
 
 
+def testConstructRepositoryArchiveAssetDirectoryName_whenContentUrlHasNoUploadsSegment_returnsLastPathSegment() -> (
+    None
+):
+    """Archive content URLs without an uploads segment fall back to the last path segment."""
+    content_url = "https://github.com/org/repo/archive/main.zip"
+
+    asset_directory = utils.construct_repository_archive_asset_directory_name(
+        content_url
+    )
+
+    assert asset_directory == "main.zip"
+
+
 def testShouldExcludePath_whenPathMatchesWorkspacePattern_shouldReturnTrue() -> None:
     result = utils.should_exclude_path("/workspace/src/main.py", [r"^/workspace(/|$)"])
 
