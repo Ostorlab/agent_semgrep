@@ -59,11 +59,20 @@ def construct_repository_asset_directory_name(
 def construct_repository_archive_asset_directory_name(content_url: str) -> str:
     """Construct the archive extraction directory name from its uploaded content URL.
 
+    Repository archive uploads are expected to follow the GCS upload shape
+    `.../uploads/<uuid>`. The upload UUID immediately after the `uploads`
+    segment is returned and used as the extraction directory name.
+
     Args:
         content_url: URL of the uploaded repository archive.
 
     Returns:
-        Path segment immediately after uploads, or the last path segment.
+        The upload UUID segment immediately after `uploads`.
+
+    Raises:
+        ValueError: If `content_url` does not contain an `uploads/<uuid>`
+            segment, since any deviation from the expected upload shape must
+            surface rather than silently scan an ambiguous directory.
     """
     parsed_url: parse.ParseResult = parse.urlparse(content_url)
     path_segments: list[str] = [
@@ -72,11 +81,16 @@ def construct_repository_archive_asset_directory_name(content_url: str) -> str:
     try:
         uploads_index: int = path_segments.index("uploads")
     except ValueError:
-        return os.path.basename(parsed_url.path.rstrip("/"))
+        raise ValueError(
+            f"Repository archive content_url has no `uploads` segment: {content_url!r}"
+        )
 
-    if uploads_index + 1 < len(path_segments):
-        return path_segments[uploads_index + 1]
-    return os.path.basename(parsed_url.path.rstrip("/"))
+    if uploads_index + 1 >= len(path_segments):
+        raise ValueError(
+            f"Repository archive content_url has no upload id after `uploads`: "
+            f"{content_url!r}"
+        )
+    return path_segments[uploads_index + 1]
 
 
 def should_exclude_path(

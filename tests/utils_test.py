@@ -276,17 +276,24 @@ def testConstructRepositoryArchiveAssetDirectoryName_whenUploadUrlHasPathAfterId
     assert asset_directory == "cc3714"
 
 
-def testConstructRepositoryArchiveAssetDirectoryName_whenContentUrlHasNoUploadsSegment_returnsLastPathSegment() -> (
+def testConstructRepositoryArchiveAssetDirectoryName_whenContentUrlHasNoUploadsSegment_raisesValueError() -> (
     None
 ):
-    """Archive content URLs without an uploads segment fall back to the last path segment."""
+    """Archive content URLs without an `uploads` segment are rejected, not silently accepted."""
     content_url = "https://github.com/org/repo/archive/main.zip"
 
-    asset_directory = utils.construct_repository_archive_asset_directory_name(
-        content_url
-    )
+    with pytest.raises(ValueError):
+        utils.construct_repository_archive_asset_directory_name(content_url)
 
-    assert asset_directory == "main.zip"
+
+def testConstructRepositoryArchiveAssetDirectoryName_whenUploadsHasNoIdAfter_raisesValueError() -> (
+    None
+):
+    """Archive content URLs ending at `uploads` with no following id are rejected."""
+    content_url = "https://example.com/uploads"
+
+    with pytest.raises(ValueError):
+        utils.construct_repository_archive_asset_directory_name(content_url)
 
 
 def testShouldExcludePath_whenPathMatchesWorkspacePattern_shouldReturnTrue() -> None:

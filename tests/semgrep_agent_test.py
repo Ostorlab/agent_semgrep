@@ -580,7 +580,7 @@ def testAgentSemgrep_whenRepositoryArchiveAsset_emitsBackVulnerabilityWithReposi
     assert isinstance(repository_archive_location, dict)
     assert (
         repository_archive_location["content_url"]
-        == "https://github.com/org/repo/archive/main.zip"
+        == "https://example.com/uploads/62f54a92-6d5f-4ce8-848e-adf13ff79fee"
     )
     assert vulnerability_location_dict.get("repository") is None
     metadata = vulnerability_location_dict["metadata"]
@@ -589,25 +589,23 @@ def testAgentSemgrep_whenRepositoryArchiveAsset_emitsBackVulnerabilityWithReposi
     assert metadata[0]["value"] == "/tmp/tmpza6g8qu0.java"
 
 
-def testAgentSemgrep_whenRepositoryArchiveAssetWithoutContentUrl_emitsBackVulnerabilityWithoutLocation(
+def testProcess_whenRepositoryArchiveAssetWithoutContentUrl_shouldNotScan(
     test_agent: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     repository_archive_asset_message_without_content_url: message.Message,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """A malformed archive message without a content url cannot identify the asset, the vulnerability
-    is still reported but with no location."""
+    """A repository archive asset without a content_url is refused and never scanned."""
     del agent_persist_mock
-    mocker.patch(
-        "agent.semgrep_agent._run_analysis",
-        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
-    )
+    command_mock = mocker.patch("subprocess.run")
+    run_analysis_mock = mocker.patch("agent.semgrep_agent._run_analysis")
 
     test_agent.process(repository_archive_asset_message_without_content_url)
 
-    assert len(agent_mock) > 0
-    assert agent_mock[0].data.get("vulnerability_location") is None
+    command_mock.assert_not_called()
+    run_analysis_mock.assert_not_called()
+    assert len(agent_mock) == 0
 
 
 def testProcess_whenRepositoryAsset_shouldScanAssetDirectory(
@@ -722,25 +720,17 @@ def testProcess_whenRepositoryArchiveAssetDirectoryEscapesAssetsCodePath_shouldN
     command_mock.assert_not_called()
 
 
-def testProcess_whenRepositoryAssetHasEmptyUrlOrCommitHash_shouldFallBackToSharedCodePath(
+def testProcess_whenRepositoryAssetHasEmptyUrl_shouldNotScan(
     test_agent: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     repository_commit_hash: str,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """Empty repository_url or commit_hash fall back to the shared /code path."""
+    """An empty repository_url is refused rather than falling back to the shared /code root."""
     del agent_mock
     del agent_persist_mock
-    command_mock = mocker.patch(
-        "subprocess.run",
-        return_value=subprocess.CompletedProcess(
-            args=[],
-            returncode=0,
-            stdout=EMPTY_JSON_OUTPUT,
-            stderr=EMPTY_ERROR_MESSAGE,
-        ),
-    )
+    command_mock = mocker.patch("subprocess.run")
     repository_asset_message = message.Message.from_data(
         selector="v3.asset.repository",
         data={"repository_url": "", "commit_hash": repository_commit_hash},
@@ -748,27 +738,60 @@ def testProcess_whenRepositoryAssetHasEmptyUrlOrCommitHash_shouldFallBackToShare
 
     test_agent.process(repository_asset_message)
 
-    assert command_mock.call_args.args[0][-1] == semgrep_agent.ASSETS_CODE_PATH
+    command_mock.assert_not_called()
 
 
-def testProcess_whenRepositoryArchiveAssetHasEmptyContentUrl_shouldFallBackToSharedCodePath(
+def testProcess_whenRepositoryAssetHasEmptyCommitHash_shouldNotScan(
     test_agent: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     mocker: plugin.MockerFixture,
 ) -> None:
-    """An empty content_url falls back to the shared /code path instead of scanning silently."""
+    """An empty commit_hash is refused rather than falling back to the shared /code root."""
     del agent_mock
     del agent_persist_mock
-    command_mock = mocker.patch(
-        "subprocess.run",
-        return_value=subprocess.CompletedProcess(
-            args=[],
-            returncode=0,
-            stdout=EMPTY_JSON_OUTPUT,
-            stderr=EMPTY_ERROR_MESSAGE,
-        ),
+    command_mock = mocker.patch("subprocess.run")
+    repository_asset_message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={"repository_url": "https://github.com/org/repo.git", "commit_hash": ""},
     )
+
+    test_agent.process(repository_asset_message)
+
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryAssetHasMissingUrl_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    repository_commit_hash: str,
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A repository asset with no repository_url at all is refused before scanning."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch("subprocess.run")
+    repository_asset_message = message.Message.from_data(
+        selector="v3.asset.repository",
+        data={"commit_hash": repository_commit_hash},
+    )
+
+    test_agent.process(repository_asset_message)
+
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryArchiveAssetHasEmptyContentUrl_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """An empty content_url is refused rather than scanning the shared /code root silently."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch("subprocess.run")
     repository_archive_asset_message = message.Message.from_data(
         selector="v3.asset.file.repository_archive",
         data={"content_url": "", "path": "repo-main.zip"},
@@ -776,7 +799,30 @@ def testProcess_whenRepositoryArchiveAssetHasEmptyContentUrl_shouldFallBackToSha
 
     test_agent.process(repository_archive_asset_message)
 
-    assert command_mock.call_args.args[0][-1] == semgrep_agent.ASSETS_CODE_PATH
+    command_mock.assert_not_called()
+
+
+def testProcess_whenRepositoryArchiveAssetHasMalformedContentUrl_shouldNotScan(
+    test_agent: semgrep_agent.SemgrepAgent,
+    agent_mock: list[message.Message],
+    agent_persist_mock: dict[str | bytes, str | bytes],
+    mocker: plugin.MockerFixture,
+) -> None:
+    """A content_url that does not follow the `uploads/<uuid>` shape is refused and never scanned."""
+    del agent_mock
+    del agent_persist_mock
+    command_mock = mocker.patch("subprocess.run")
+    repository_archive_asset_message = message.Message.from_data(
+        selector="v3.asset.file.repository_archive",
+        data={
+            "content_url": "https://github.com/org/repo/archive/main.zip",
+            "path": "repo-main.zip",
+        },
+    )
+
+    test_agent.process(repository_archive_asset_message)
+
+    command_mock.assert_not_called()
 
 
 def testProcess_whenRepositoryUrlHasNoPath_shouldRejectInvalidAssetDirectoryAndNotScan(
@@ -804,19 +850,16 @@ def testProcess_whenRepositoryUrlHasNoPath_shouldRejectInvalidAssetDirectoryAndN
     command_mock.assert_not_called()
 
 
-def testProcess_whenRepositoryAssetHasEmptyUrl_emitsVulnerabilityWithoutRepositoryLocation(
+def testProcess_whenRepositoryAssetHasInvalidValues_shouldNotEmitVulnerability(
     test_agent: semgrep_agent.SemgrepAgent,
     agent_mock: list[message.Message],
     agent_persist_mock: dict[str | bytes, str | bytes],
     repository_commit_hash: str,
     mocker: plugin.MockerFixture,
 ) -> None:
-    """An empty repository_url is normalized to None so no repository asset is attached to the location."""
+    """A repository asset refused for missing metadata emits no vulnerability at all."""
     del agent_persist_mock
-    mocker.patch(
-        "agent.semgrep_agent._run_analysis",
-        return_value=(JSON_OUTPUT, EMPTY_ERROR_MESSAGE),
-    )
+    mocker.patch("agent.semgrep_agent._run_analysis")
     repository_asset_message = message.Message.from_data(
         selector="v3.asset.repository",
         data={"repository_url": "", "commit_hash": repository_commit_hash},
@@ -824,8 +867,7 @@ def testProcess_whenRepositoryAssetHasEmptyUrl_emitsVulnerabilityWithoutReposito
 
     test_agent.process(repository_asset_message)
 
-    assert len(agent_mock) > 0
-    assert agent_mock[0].data.get("vulnerability_location") is None
+    assert len(agent_mock) == 0
 
 
 def testAgentSemgrep_whenFilePathIsExcluded_notProcessMessage(
