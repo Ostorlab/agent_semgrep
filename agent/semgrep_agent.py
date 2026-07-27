@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import re
 import subprocess
 import tempfile
 from typing import Any
@@ -13,7 +15,6 @@ from ostorlab.agent.mixins import agent_report_vulnerability_mixin
 from rich import logging as rich_logging
 
 from agent import utils
-
 
 logging.basicConfig(
     format="%(message)s",
@@ -32,7 +33,8 @@ TIMEOUT_THRESHOLD = 0
 FILE_SIZE_LIMIT = 500 * 1024 * 1024
 # 2GB
 DEFAULT_MEMORY_LIMIT = 2 * 1024 * 1024 * 1024
-REPOSITORY_CODE_PATH = "/code"
+ASSETS_CODE_PATH = "/code"
+ASSET_DIRECTORY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPOSITORY_SELECTOR = "v3.asset.repository"
 REPOSITORY_ARCHIVE_SELECTOR = "v3.asset.file.repository_archive"
 
@@ -174,10 +176,43 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
             else:
                 logger.error("Semgrep completed with errors %s", stderr)
 
-    def _scan_repository_code(self, memory_limit: int) -> dict[str, Any] | None:
-        """Scan the source code extracted to the shared /code volume, the content carried by the message is never read."""
+    def _scan_repository_code(
+        self, memory_limit: int, asset_directory: str
+    ) -> dict[str, Any] | None:
+        """Scan source code extracted under the shared /code volume.
+
+        Args:
+            memory_limit: Maximum memory the Semgrep process may use.
+            asset_directory: Single path component naming the extracted asset
+                directory under `/code`. It is validated against a safe-name
+                pattern and a containment check as defense in depth before any
+                scan runs, so a malformed or traversal-style value can never
+                escape `/code` or scan the wrong target.
+        """
+        if ASSET_DIRECTORY_PATTERN.fullmatch(asset_directory) is None:
+            logger.error(
+                "Refusing to scan invalid repository asset directory `%s`.",
+                asset_directory,
+            )
+            return None
+
+        repository_code_path: str = os.path.realpath(
+            os.path.join(ASSETS_CODE_PATH, asset_directory)
+        )
+        assets_code_path: str = os.path.realpath(ASSETS_CODE_PATH)
+        if (
+            os.path.commonpath([assets_code_path, repository_code_path])
+            != assets_code_path
+        ):
+            logger.error(
+                "Refusing to scan repository asset directory outside `%s`: `%s`.",
+                ASSETS_CODE_PATH,
+                asset_directory,
+            )
+            return None
+
         output = _run_analysis(
-            REPOSITORY_CODE_PATH,
+            repository_code_path,
             memory_limit,
             command_timeout=REPOSITORY_COMMAND_TIMEOUT,
         )
@@ -195,29 +230,74 @@ class SemgrepAgent(agent.Agent, agent_report_vulnerability_mixin.AgentReportVuln
         return json_output
 
     def _process_repository_asset(self, message: m.Message, memory_limit: int) -> None:
-        """Scan a repository asset and report against its repository URL."""
-        json_output = self._scan_repository_code(memory_limit)
+        """Scan a repository asset and report against its repository URL.
+
+        A repository asset that is missing its `repository_url` or `commit_hash`
+        (either `None` or an empty string) cannot identify its extracted
+        directory, so the scan is refused outright rather than falling back to
+        the shared `/code` root, which could attribute findings to the wrong
+        asset.
+        """
+        repository_url: str | None = message.data.get("repository_url")
+        commit_hash: str | None = message.data.get("commit_hash")
+        if (
+            repository_url is None
+            or repository_url == ""
+            or commit_hash is None
+            or commit_hash == ""
+        ):
+            logger.error(
+                "Repository asset is missing repository_url or commit_hash; "
+                "refusing to scan."
+            )
+            return
+
+        asset_directory: str = utils.construct_repository_asset_directory_name(
+            repository_url, commit_hash
+        )
+        json_output = self._scan_repository_code(memory_limit, asset_directory)
         if json_output is None:
             return
 
         self._emit_results(
             json_output=json_output,
-            repository_url=message.data.get("repository_url"),
-            commit_hash=message.data.get("commit_hash"),
+            repository_url=repository_url,
+            commit_hash=commit_hash,
             provider=message.data.get("provider"),
         )
 
     def _process_repository_archive_asset(
         self, message: m.Message, memory_limit: int
     ) -> None:
-        """Scan a repository archive asset and report against its content URL, it carries no repository URL, commit hash nor provider."""
-        json_output = self._scan_repository_code(memory_limit)
+        """Scan a repository archive asset and report against its content URL.
+
+        A repository archive asset is identified by its uploaded `content_url`,
+        which must follow the `.../uploads/<uuid>` GCS shape. A missing or
+        malformed `content_url` is rejected outright rather than falling back to
+        the shared `/code` root, which could scan the wrong target.
+        """
+        content_url: str | None = message.data.get("content_url")
+        if content_url is None or content_url == "":
+            logger.error(
+                "Repository archive asset is missing content_url; refusing to scan."
+            )
+            return
+
+        try:
+            asset_directory: str = (
+                utils.construct_repository_archive_asset_directory_name(content_url)
+            )
+        except ValueError as e:
+            logger.error("Invalid repository archive content_url: %s", e)
+            return
+
+        json_output = self._scan_repository_code(memory_limit, asset_directory)
         if json_output is None:
             return
 
         self._emit_results(
             json_output=json_output,
-            archive_content_url=message.data.get("content_url"),
+            archive_content_url=content_url,
         )
 
     def _emit_results(
