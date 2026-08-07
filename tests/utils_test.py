@@ -83,6 +83,66 @@ def testParseResults_whenNoVulnerabilitiesAreFound_returnsVulnerability(
     assert next(utils.parse_results(semgrep_json_output), None) is None
 
 
+def _bidi_finding(column: int, line: str) -> dict[str, Any]:
+    """Build a Semgrep result for the bidirectional-characters rule."""
+    return {
+        "check_id": "generic.unicode.security.bidi.contains-bidirectional-characters",
+        "path": "/tmp/fa.js",
+        "start": {"col": column, "line": 1, "offset": column - 1},
+        "end": {"col": column + 3, "line": 1, "offset": column + 2},
+        "extra": {
+            "message": "This code contains bidirectional (bidi) characters.",
+            "lines": line,
+            "fix": "",
+            "metadata": {
+                "impact": "HIGH",
+                "references": ["https://trojansource.codes/"],
+                "technology": ["unicode"],
+            },
+        },
+    }
+
+
+def testParseResults_whenBidiCharInsideStringLiteral_skipsFinding() -> None:
+    """Unittest for the results parser:
+    a bidirectional character inside a string literal (e.g. an RTL mark in a
+    Persian translation) cannot alter code execution and is suppressed.
+    """
+    line = 'var s = "\u202b\u0633\u0644\u0627\u0645\u202c";'
+    json_output = {"results": [_bidi_finding(10, line)], "path": "/tmp/fa.js"}
+
+    assert next(utils.parse_results(json_output), None) is None
+
+
+def testParseResults_whenBidiCharInExecutableCode_keepsFinding() -> None:
+    """Unittest for the results parser:
+    a bidirectional character in executable code (Trojan-Source) is reported.
+    """
+    line = 'var accessLevel = "user"; \u202e/* admin */ \u202cif (x) {'
+    json_output = {"results": [_bidi_finding(27, line)], "path": "/tmp/trojan.js"}
+
+    vulnerability = next(utils.parse_results(json_output))
+
+    assert vulnerability.entry.title == "Contains Bidirectional Characters"
+    assert vulnerability.risk_rating.name == "HIGH"
+
+
+def testBidiMatchInsideStringLiteral_whenCharIsInDoubleQuotedString_returnsTrue() -> (
+    None
+):
+    """Unittest for the string-literal detection: char inside double quotes."""
+    finding = _bidi_finding(10, 'var s = "\u202bhello";')
+
+    assert utils._bidi_match_inside_string_literal(finding) is True
+
+
+def testBidiMatchInsideStringLiteral_whenCharIsInCode_returnsFalse() -> None:
+    """Unittest for the string-literal detection: char in executable code."""
+    finding = _bidi_finding(12, "var x = 1; \u202e var y = 2;")
+
+    assert utils._bidi_match_inside_string_literal(finding) is False
+
+
 def testGetFileType_withPathProvided_returnsFileType(
     scan_message_file: m.Message,
 ) -> None:

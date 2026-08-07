@@ -34,6 +34,8 @@ RISK_RATING_MAPPING = {
     "HIGH": vulnerability_mixin.RiskRating.HIGH,
 }
 
+BIDI_CHARACTERS_CHECK_ID_SUFFIX = "contains-bidirectional-characters"
+
 logger = logging.getLogger(__name__)
 
 
@@ -278,6 +280,70 @@ def _prepare_vulnerability_location(
     )
 
 
+def _is_bidi_characters_finding(vulnerability: dict[str, Any]) -> bool:
+    """Report whether a Semgrep result is the bidirectional-characters finding.
+
+    Args:
+        vulnerability: A single Semgrep result entry.
+
+    Returns:
+        True when the result was produced by the bidi-characters rule.
+    """
+    check_id: str = vulnerability.get("check_id") or ""
+    return check_id.endswith(BIDI_CHARACTERS_CHECK_ID_SUFFIX)
+
+
+def _bidi_match_inside_string_literal(vulnerability: dict[str, Any]) -> bool:
+    """Determine whether the bidi character that triggered the finding is inside a string literal.
+
+    Bidirectional control characters are a Trojan-Source vector only when they
+    sit in executable code, where they can reorder tokens to hide logic. Inside
+    a string literal they are inert display markers (for example the
+    right-to-left marks used in Persian/Arabic/Hebrew translations) and cannot
+    change how the code is parsed or executed. Semgrep normally skips string
+    contents, but a parse error anywhere in the file can make it fall back to
+    generic matching and flag characters that are actually inside a string.
+
+    The matched line is walked character by character tracking quote state
+    (single, double, and backtick) with backslash escaping; the state at the
+    match column reports whether the character lies within a string literal.
+
+    Args:
+        vulnerability: A single Semgrep result entry.
+
+    Returns:
+        True when the matched character is inside a string literal.
+    """
+    start: dict[str, Any] = vulnerability.get("start") or {}
+    column: int | None = start.get("col")
+    lines: str = (vulnerability.get("extra") or {}).get("lines", "")
+    if column is None or not lines:
+        return False
+
+    line = lines.split("\n", 1)[0]
+    target_index = column - 1
+    if target_index < 0 or target_index >= len(line):
+        return False
+
+    in_string = False
+    quote = ""
+    escaped = False
+    for character in line[: target_index + 1]:
+        if escaped:
+            escaped = False
+            continue
+        if in_string:
+            if character == "\\":
+                escaped = True
+            elif character == quote:
+                in_string = False
+        elif character in ("'", '"', "`"):
+            in_string = True
+            quote = character
+
+    return in_string
+
+
 def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
@@ -308,6 +374,14 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if _is_bidi_characters_finding(
+            vulnerability
+        ) and _bidi_match_inside_string_literal(vulnerability):
+            logger.info(
+                "Skipping bidirectional-characters finding: the character is "
+                "inside a string literal and cannot affect code execution."
+            )
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))
