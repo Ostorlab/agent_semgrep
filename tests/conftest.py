@@ -3,7 +3,8 @@
 import json
 import pathlib
 import random
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 import pytest
 from ostorlab.agent import definitions as agent_definitions
