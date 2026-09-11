@@ -15,15 +15,11 @@ import requests
 import tenacity
 from ostorlab.agent.kb import kb
 from ostorlab.agent.message import message as m
-from ostorlab.agent.mixins import (
-    agent_report_vulnerability_mixin as vulnerability_mixin,
-)
-from ostorlab.assets import (
-    android_store,
-    harmonyos_store,
-    ios_store,
-)
+from ostorlab.agent.mixins import agent_report_vulnerability_mixin as vulnerability_mixin
+from ostorlab.assets import android_store
 from ostorlab.assets import asset as os_asset
+from ostorlab.assets import harmonyos_store
+from ostorlab.assets import ios_store
 from ostorlab.assets import repository as repository_asset
 from ostorlab.assets import repository_archive as repository_archive_asset
 
