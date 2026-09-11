@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import random
 from typing import Any
 from typing import cast
 
@@ -186,7 +187,7 @@ def test_agent(
             bus_url="NA",
             bus_exchange_topic="NA",
             args=[],
-            healthcheck_port=0,
+            healthcheck_port=random.randint(5000, 6000),
             redis_url="redis://guest:guest@localhost:6379",
         )
         return semgrep_agent.SemgrepAgent(definition, settings)
@@ -210,7 +211,7 @@ def test_agent_with_exclude_path_regexes(
                     value=json.dumps([r"^/workspace(/|$)"]).encode(),
                 )
             ],
-            healthcheck_port=0,
+            healthcheck_port=random.randint(5000, 6000),
             redis_url="redis://guest:guest@localhost:6379",
         )
         return semgrep_agent.SemgrepAgent(definition, settings)
