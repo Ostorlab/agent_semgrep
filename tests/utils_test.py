@@ -338,3 +338,94 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+def _incomplete_sanitization_vulnerability(
+    replace_char: str,
+    *,
+    lines: str | None = None,
+    check_id: str = "js.lang.security.audit.incomplete-sanitization.incomplete-sanitization",
+) -> dict[str, Any]:
+    """Build a semgrep `incomplete-sanitization` finding replacing `replace_char`."""
+    return {
+        "check_id": check_id,
+        "extra": {
+            "message": "`$STR.replace` method will only replace the first occurrence when "
+            "used with a string argument ($CHAR).",
+            "metavars": {
+                "$CHAR": {
+                    "abstract_content": f"'{replace_char}'",
+                    "start": {"line": 1, "col": 10},
+                    "end": {"line": 1, "col": 12},
+                }
+            },
+            "lines": lines or f'let x = someText.replace("{replace_char}", "");',
+        },
+        "start": {"line": 1, "col": 10},
+        "end": {"line": 1, "col": 30},
+    }
+
+
+def testIsCurrencyFormattingIncompleteSanitization_whenReplacingDollar_returnsTrue() -> (
+    None
+):
+    """`incomplete-sanitization` replacing a `$` currency symbol is amount formatting."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "$",
+        lines='M = parseFloat(a ? E.amount.primaryText.replace(/ /g, "").replace(",", ".")'
+        ' : E.amount.primaryText.replace("$", "").replace(/,/g, ""));',
+    )
+
+    assert utils.is_currency_formatting_incomplete_sanitization(vulnerability) is True
+
+
+def testIsCurrencyFormattingIncompleteSanitization_whenReplacingHtmlMeta_returnsFalse() -> (
+    None
+):
+    """`incomplete-sanitization` replacing `<`, `>`, `&` etc. is still reported."""
+    for character in ("<", ">", "&", '"', "{", "%"):
+        vulnerability = _incomplete_sanitization_vulnerability(character)
+        assert (
+            utils.is_currency_formatting_incomplete_sanitization(vulnerability) is False
+        )
+
+
+def testIsCurrencyFormattingIncompleteSanitization_whenOtherRule_returnsFalse() -> None:
+    """Other rules are never suppressed by the amount-formatting filter."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "$",
+        check_id="java.lang.security.audit.cbc-padding-oracle.cbc-padding-oracle",
+    )
+
+    assert utils.is_currency_formatting_incomplete_sanitization(vulnerability) is False
+
+
+def testParseResults_whenIncompleteSanitizationReplacesDollar_isSkipped() -> None:
+    """An amount-formatting `.replace("$", "")` finding is not emitted."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "$",
+        lines='M = parseFloat(a ? E.amount.primaryText.replace(/ /g, "").replace(",", ".")'
+        ' : E.amount.primaryText.replace("$", "").replace(/,/g, ""));',
+    )
+
+    parsed = list(
+        utils.parse_results(
+            {"results": [vulnerability], "path": "assets/public/app.js"}
+        )
+    )
+
+    assert parsed == []
+
+
+def testParseResults_whenIncompleteSanitizationReplacesHtmlMeta_isEmitted() -> None:
+    """A genuine `.replace("<", "")` escaping finding is still reported."""
+    vulnerability = _incomplete_sanitization_vulnerability("<")
+
+    parsed = list(
+        utils.parse_results(
+            {"results": [vulnerability], "path": "assets/public/app.js"}
+        )
+    )
+
+    assert len(parsed) == 1
+    assert parsed[0].entry.title == "Incomplete Sanitization"

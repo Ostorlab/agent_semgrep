@@ -29,6 +29,18 @@ LINE_SIZE_MAX = 5000
 DOWNLOAD_REQUEST_TIMEOUT = 60
 NUMBER_RETRIES = 3
 
+# The semgrep JS `incomplete-sanitization` audit rule (js.lang.security.audit.
+# incomplete-sanitization) flags any one-shot `.replace(<char>, ...)` call whose
+# first argument is a metacharacter from `' " < > * | { } [ ] % $ \n \r \t \&`,
+# warning that a non-global replace could bypass output escaping. It cannot tell
+# escaping of dangerous data apart from ordinary string/amount formatting.
+# Stripping the `$` currency symbol from a monetary amount (e.g.
+# `parseFloat(amount.primaryText.replace("$", ""))`) is amount formatting, not
+# sanitization, so those findings are suppressed. Replacing the other
+# metacharacters (`<`, `>`, `"`, `&`, ...) is still reported.
+_INCOMPLETE_SANITIZATION_RULE = "incomplete-sanitization"
+_CURRENCY_REPLACE_PATTERN = re.compile(r"\.replace\(\s*[\"']\$[\"']\s*,", re.IGNORECASE)
+
 RISK_RATING_MAPPING = {
     "UNKNOWN": vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": vulnerability_mixin.RiskRating.LOW,
@@ -187,6 +199,45 @@ def filter_description(description: str) -> str:
     return description
 
 
+def is_currency_formatting_incomplete_sanitization(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Report whether an `incomplete-sanitization` finding is amount-formatting.
+
+    The semgrep JS `incomplete-sanitization` audit rule flags every one-shot
+    `.replace(<char>, ...)` call that removes a metacharacter, regardless of
+    whether the replacement is sanitization of dangerous data or ordinary amount
+    formatting. Stripping a `$` currency symbol (for example
+    `parseFloat(E.amount.primaryText.replace("$", ""))`) is number formatting,
+    not escaping, so a finding of this rule that replaces a `$` is a false
+    positive. Replacing any other metacharacter the rule targets (`<`, `>`, `"`,
+    `&`, `{`, `}`, ...) is still reported.
+
+    Args:
+        vulnerability: A single semgrep finding with its rule `check_id`, the
+            `$CHAR` metavar captured by the rule, and the matched lines.
+
+    Returns:
+        True when the finding is the `incomplete-sanitization` rule replacing a
+        `$` currency symbol, False otherwise.
+    """
+    check_id = vulnerability.get("check_id") or ""
+    if check_id.split(".")[-1] != _INCOMPLETE_SANITIZATION_RULE:
+        return False
+
+    replaced = (
+        vulnerability.get("extra", {})
+        .get("metavars", {})
+        .get("$CHAR", {})
+        .get("abstract_content", "")
+    )
+    if "$" in replaced:
+        return True
+
+    lines = vulnerability.get("extra", {}).get("lines", "") or ""
+    return _CURRENCY_REPLACE_PATTERN.search(lines) is not None
+
+
 def _sort_dict(dictionary: dict[str, Any] | list[Any]) -> dict[str, Any] | list[Any]:
     """Recursively sort dictionary keys and lists within.
     Args:
@@ -310,6 +361,13 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_currency_formatting_incomplete_sanitization(vulnerability):
+            logger.info(
+                "Skipping amount-formatting `incomplete-sanitization` false "
+                "positive (check_id `%s`).",
+                vulnerability.get("check_id"),
+            )
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))
