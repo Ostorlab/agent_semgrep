@@ -338,3 +338,153 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+def _incomplete_sanitization_vulnerability(
+    replace_char: str,
+    *,
+    lines: str,
+    check_id: str = "javascript.lang.security.audit.incomplete-sanitization.incomplete-sanitization",
+) -> dict[str, Any]:
+    """Build a semgrep finding for the incomplete-sanitization rule."""
+    return {
+        "check_id": check_id,
+        "start": {"col": 1, "line": 1, "offset": 0},
+        "end": {"col": 10, "line": 1, "offset": 9},
+        "path": "/code/app.js",
+        "extra": {
+            "lines": lines,
+            "message": (
+                "Incomplete Sanitization: `e.toString().replace` method will only "
+                "replace the first occurrence when used with a string argument."
+            ),
+            "metadata": {
+                "impact": "LOW",
+                "technology": ["javascript"],
+                "references": [],
+            },
+            "metavars": {
+                "$CHAR": {
+                    "abstract_content": f'"{replace_char}"',
+                },
+            },
+        },
+    }
+
+
+def testIsPercentFormattingIncompleteSanitization_whenPercentStrippedBeforeNumberParse_returnsTrue() -> (
+    None
+):
+    """A trailing `%` stripped before `Number(e) / 100` is percent formatting."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "%",
+        lines=(
+            'e.toString().endsWith("%") && '
+            '(e = e.toString().replace("%", ""), e = Number(e) / 100);'
+        ),
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is True
+
+
+def testIsPercentFormattingIncompleteSanitization_whenPercentStrippedBeforeParseFloat_returnsTrue() -> (
+    None
+):
+    """A `%` stripped before parseFloat is percent formatting."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "%", lines='value = parseFloat(text.replace("%", ""));'
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is True
+
+
+def testIsPercentFormattingIncompleteSanitization_whenPercentMetavarMissingButLinesMatch_returnsTrue() -> (
+    None
+):
+    """Without the `$CHAR` metavar, the matched lines still identify the replace."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "%",
+        lines='e = e.toString().replace("%", ""), e = Number(e) / 100;',
+    )
+    vulnerability["extra"]["metavars"] = {}
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is True
+
+
+def testIsPercentFormattingIncompleteSanitization_whenPercentReplaceEscapes_returnsFalse() -> (
+    None
+):
+    """A `%` replace in an escaping context is not suppressed."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "%", lines='html = userInput.replace("%", "&#37;");'
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is False
+
+
+def testIsPercentFormattingIncompleteSanitization_whenPercentReplaceWithoutNumberContext_returnsFalse() -> (
+    None
+):
+    """A `%` replace not feeding a numeric parse is not suppressed."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "%", lines='label = value.replace("%", " percent");'
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is False
+
+
+def testIsPercentFormattingIncompleteSanitization_whenOtherMetacharInNumberContext_returnsFalse() -> (
+    None
+):
+    """Replacing an escaping-relevant metacharacter is still reported."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "<", lines='e = e.toString().replace("<", ""), e = Number(e) / 100;'
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is False
+
+
+def testIsPercentFormattingIncompleteSanitization_whenOtherRule_returnsFalse() -> None:
+    """Findings from other rules are never suppressed by this filter."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "%",
+        lines='e = e.toString().replace("%", ""), e = Number(e) / 100;',
+        check_id="javascript.lang.security.audit.eval-detected.eval-detected",
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is False
+
+
+def testParseResults_whenPercentFormattingFinding_doesNotYieldVulnerability() -> None:
+    """Percent-formatting incomplete-sanitization findings are dropped."""
+    json_output: dict[str, Any] = {
+        "path": "/code/app.js",
+        "results": [
+            _incomplete_sanitization_vulnerability(
+                "%",
+                lines=(
+                    'e.toString().endsWith("%") && '
+                    '(e = e.toString().replace("%", ""), e = Number(e) / 100);'
+                ),
+            )
+        ],
+    }
+
+    assert next(utils.parse_results(json_output), None) is None
+
+
+def testParseResults_whenEscapingReplaceFinding_yieldsVulnerability() -> None:
+    """Escaping-context incomplete-sanitization findings are still reported."""
+    json_output: dict[str, Any] = {
+        "path": "/code/app.js",
+        "results": [
+            _incomplete_sanitization_vulnerability(
+                "%", lines='html = userInput.replace("%", "&#37;");'
+            )
+        ],
+    }
+
+    vulnerabilities = list(utils.parse_results(json_output))
+
+    assert len(vulnerabilities) == 1
+    assert vulnerabilities[0].entry.title == "Incomplete Sanitization"

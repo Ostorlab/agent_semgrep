@@ -38,6 +38,53 @@ RISK_RATING_MAPPING = {
 
 logger = logging.getLogger(__name__)
 
+_INCOMPLETE_SANITIZATION_RULE = "incomplete-sanitization"
+# A `%` stripped before parsing a number (e.g. the `endsWith("%")` guard plus
+# `Number(e) / 100`) is percent formatting, not sanitization. The semgrep JS
+# audit rule cannot tell the two apart, so only findings whose matched lines
+# show such percent parsing are suppressed. A `%` replace in any other context
+# (URL or HTML escaping, ...) is still reported.
+_PERCENT_FORMATTING_CONTEXT_PATTERN = re.compile(
+    r"(Number\s*\(|parseFloat\s*\(|parseInt\s*\(|endsWith\s*\(\s*[\"']%|/\s*100\b)",
+    re.IGNORECASE,
+)
+_PERCENT_REPLACE_PATTERN = re.compile(r"\.replace\(\s*[\"']%[\"']\s*,", re.IGNORECASE)
+
+
+def is_percent_formatting_incomplete_sanitization(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Report whether an incomplete-sanitization finding is percent formatting.
+
+    The semgrep JS audit rule `incomplete-sanitization` flags any one-shot
+    `.replace(<char>, ...)` call whose first argument is a metacharacter, since
+    a non-global replace could bypass output escaping. It cannot tell escaping
+    of dangerous data apart from ordinary number formatting: stripping a
+    trailing `%` before `Number(e) / 100` (usually guarded by `endsWith("%")`)
+    parses a percentage string, and a leftover `%` only makes the numeric parse
+    return `NaN`. Findings matching that shape are suppressed.
+
+    Args:
+        vulnerability: Semgrep json output of a given vulnerability.
+
+    Returns:
+        True when the finding is a percent-formatting replace that should be
+        suppressed, False otherwise.
+    """
+    check_id = vulnerability.get("check_id") or ""
+    if check_id.split(".")[-1] != _INCOMPLETE_SANITIZATION_RULE:
+        return False
+
+    extra = vulnerability.get("extra") or {}
+    lines = extra.get("lines", "")
+    if _PERCENT_FORMATTING_CONTEXT_PATTERN.search(lines) is None:
+        return False
+
+    replaced_char = (
+        (extra.get("metavars") or {}).get("$CHAR", {}).get("abstract_content", "")
+    )
+    return "%" in replaced_char or _PERCENT_REPLACE_PATTERN.search(lines) is not None
+
 
 def construct_repository_asset_directory_name(
     repository_url: str, commit_hash: str
@@ -310,6 +357,8 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_percent_formatting_incomplete_sanitization(vulnerability) is True:
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))
