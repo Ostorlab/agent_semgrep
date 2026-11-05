@@ -38,6 +38,48 @@ RISK_RATING_MAPPING = {
 
 logger = logging.getLogger(__name__)
 
+_EXPRESS_DATA_EXFILTRATION_RULE = "express-data-exfiltration"
+# The semgrep JS taint rule `express-data-exfiltration` sinks on every
+# `Object.assign(...)` reachable from Express request data, but client-side
+# HTTP helpers build request options by merging an object literal (`method`,
+# `headers`, ...) with per-call overrides, e.g.
+# `Object.assign({ method: s.method || "GET", headers: s.headers }, i)`.
+# The merged literal configures an outgoing request and is not a server
+# response object, so findings whose matched lines carry this HTTP-options
+# merge idiom are suppressed.
+_HTTP_OPTIONS_ASSIGN_PATTERN = re.compile(
+    r"Object\.assign\(\s*\{\s*(?=[^}]*\bmethod\s*:)(?=[^}]*\bheaders\s*:)[^}]*\}"
+)
+
+
+def is_http_options_assign_express_data_exfiltration(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Report whether an express-data-exfiltration finding is a client HTTP options merge.
+
+    The semgrep JS taint rule `express-data-exfiltration` flags every
+    `Object.assign(...)` tainted by Express request data, but client-side
+    HTTP request helpers merge an options object literal (`method`,
+    `headers`) with per-call overrides, e.g.
+    `Object.assign({ method: s.method || "GET", headers: s.headers }, i)`.
+    The merged literal configures an outgoing request and carries no server
+    response sink, so findings matching that options-merge idiom are not real
+    data exfiltration.
+
+    Args:
+        vulnerability: Semgrep json output of a given vulnerability.
+
+    Returns:
+        True when the finding is the client HTTP options merge that should be
+        suppressed, False otherwise.
+    """
+    check_id = vulnerability.get("check_id") or ""
+    if check_id.split(".")[-1] != _EXPRESS_DATA_EXFILTRATION_RULE:
+        return False
+
+    lines = (vulnerability.get("extra") or {}).get("lines", "")
+    return _HTTP_OPTIONS_ASSIGN_PATTERN.search(lines) is not None
+
 
 def construct_repository_asset_directory_name(
     repository_url: str, commit_hash: str
@@ -310,6 +352,8 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_http_options_assign_express_data_exfiltration(vulnerability) is True:
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))

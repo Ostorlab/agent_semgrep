@@ -338,3 +338,156 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+def _express_data_exfiltration_vulnerability(
+    lines: str,
+    *,
+    check_id: str = (
+        "javascript.express.security.express-data-exfiltration"
+        ".express-data-exfiltration"
+    ),
+) -> dict[str, Any]:
+    """Build a semgrep finding for the express-data-exfiltration rule."""
+    return {
+        "check_id": check_id,
+        "start": {"col": 19, "line": 319, "offset": 0},
+        "end": {"col": 56, "line": 319, "offset": 37},
+        "path": "/code/961.js",
+        "extra": {
+            "lines": lines,
+            "message": (
+                "Depending on the context, user control data in `Object.assign` "
+                "can cause web response to include data that it should not have "
+                "or can lead to a mass assignment vulnerability."
+            ),
+            "metadata": {
+                "impact": "MEDIUM",
+                "technology": ["express"],
+                "references": [],
+            },
+            "metavars": {},
+        },
+    }
+
+
+def testIsHttpOptionsAssignExpressDataExfiltration_whenHttpOptionsMerge_returnsTrue() -> (
+    None
+):
+    """Client-side HTTP request options merge is suppressed."""
+    vulnerability = _express_data_exfiltration_vulnerability(
+        lines=(
+            "const n = Object.assign({\n"
+            '                                        method: s.method || "GET",\n'
+            "                                        headers: s.headers\n"
+            "                                    }, i),"
+        )
+    )
+
+    assert utils.is_http_options_assign_express_data_exfiltration(vulnerability) is True
+
+
+def testIsHttpOptionsAssignExpressDataExfiltration_whenHeadersBeforeMethod_returnsTrue() -> (
+    None
+):
+    """Property order inside the options literal does not matter."""
+    vulnerability = _express_data_exfiltration_vulnerability(
+        lines=(
+            "const n = Object.assign({ headers: s.headers, "
+            'method: s.method || "GET" }, i),'
+        )
+    )
+
+    assert utils.is_http_options_assign_express_data_exfiltration(vulnerability) is True
+
+
+def testIsHttpOptionsAssignExpressDataExfiltration_whenGenuineMassAssignment_returnsFalse() -> (
+    None
+):
+    """A genuine server-side mass assignment is still reported."""
+    vulnerability = _express_data_exfiltration_vulnerability(
+        lines="let data = Object.assign(defaultData, req.query)"
+    )
+
+    assert (
+        utils.is_http_options_assign_express_data_exfiltration(vulnerability) is False
+    )
+
+
+def testIsHttpOptionsAssignExpressDataExfiltration_whenOptionsLiteralWithoutHeaders_returnsFalse() -> (
+    None
+):
+    """An options literal missing the headers key is still reported."""
+    vulnerability = _express_data_exfiltration_vulnerability(
+        lines='Object.assign({ method: "GET" }, req.query)'
+    )
+
+    assert (
+        utils.is_http_options_assign_express_data_exfiltration(vulnerability) is False
+    )
+
+
+def testIsHttpOptionsAssignExpressDataExfiltration_whenOtherRule_returnsFalse() -> None:
+    """Findings from other rules are never suppressed by this filter."""
+    vulnerability = _express_data_exfiltration_vulnerability(
+        lines='Object.assign({ method: s.method || "GET", headers: s.headers }, i),',
+        check_id=(
+            "javascript.express.security.audit.remote-property-injection"
+            ".remote-property-injection"
+        ),
+    )
+
+    assert (
+        utils.is_http_options_assign_express_data_exfiltration(vulnerability) is False
+    )
+
+
+def testIsHttpOptionsAssignExpressDataExfiltration_whenMissingExtra_returnsFalse() -> (
+    None
+):
+    """A finding without `extra` data is never suppressed."""
+    vulnerability = _express_data_exfiltration_vulnerability(
+        lines='Object.assign({ method: s.method || "GET", headers: s.headers }, i),'
+    )
+    vulnerability["extra"] = {}
+
+    assert (
+        utils.is_http_options_assign_express_data_exfiltration(vulnerability) is False
+    )
+
+
+def testParseResults_whenHttpOptionsMergeFinding_doesNotYieldVulnerability() -> None:
+    """Client HTTP options-merge express-data-exfiltration findings are dropped."""
+    json_output: dict[str, Any] = {
+        "path": "/code/961.js",
+        "results": [
+            _express_data_exfiltration_vulnerability(
+                lines=(
+                    "const n = Object.assign({\n"
+                    "                                        method: s.method || "
+                    '"GET",\n'
+                    "                                        headers: s.headers\n"
+                    "                                    }, i),"
+                )
+            )
+        ],
+    }
+
+    assert next(utils.parse_results(json_output), None) is None
+
+
+def testParseResults_whenGenuineMassAssignmentFinding_yieldsVulnerability() -> None:
+    """Genuine express-data-exfiltration findings are still reported."""
+    json_output: dict[str, Any] = {
+        "path": "/code/app.js",
+        "results": [
+            _express_data_exfiltration_vulnerability(
+                lines="let data = Object.assign(defaultData, req.query)"
+            )
+        ],
+    }
+
+    vulnerabilities = list(utils.parse_results(json_output))
+
+    assert len(vulnerabilities) == 1
+    assert vulnerabilities[0].entry.title == "Express Data Exfiltration"
