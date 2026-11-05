@@ -444,6 +444,20 @@ def testIsPercentFormattingIncompleteSanitization_whenOtherMetacharInNumberConte
     assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is False
 
 
+def testIsPercentFormattingIncompleteSanitization_whenOtherMetacharFlaggedOnLineWithPercentReplace_returnsFalse() -> (
+    None
+):
+    """A finding flagged for another metacharacter is not suppressed by a `%` replace elsewhere on the line."""
+    vulnerability = _incomplete_sanitization_vulnerability(
+        "<",
+        lines=(
+            'e = e.toString().replace("<", "").replace("%", ""), e = Number(e) / 100;'
+        ),
+    )
+
+    assert utils.is_percent_formatting_incomplete_sanitization(vulnerability) is False
+
+
 def testIsPercentFormattingIncompleteSanitization_whenOtherRule_returnsFalse() -> None:
     """Findings from other rules are never suppressed by this filter."""
     vulnerability = _incomplete_sanitization_vulnerability(

@@ -83,7 +83,10 @@ def is_percent_formatting_incomplete_sanitization(
     replaced_char = (
         (extra.get("metavars") or {}).get("$CHAR", {}).get("abstract_content", "")
     )
-    return "%" in replaced_char or _PERCENT_REPLACE_PATTERN.search(lines) is not None
+    if replaced_char == "":
+        # The `$CHAR` metavar was not captured: fall back to the matched lines.
+        return _PERCENT_REPLACE_PATTERN.search(lines) is not None
+    return "%" in replaced_char
 
 
 def construct_repository_asset_directory_name(
