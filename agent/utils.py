@@ -38,6 +38,45 @@ RISK_RATING_MAPPING = {
 
 logger = logging.getLogger(__name__)
 
+_REMOTE_PROPERTY_INJECTION_RULE = "remote-property-injection"
+# Minified jQuery's `getWidthOrHeight` helper builds DOM dimension property
+# names by concatenating a fixed prefix ("inner", "client", "scroll" or
+# "offset") with an internal Width/Height or Top/Left iteration variable, e.g.
+# `e["inner" + a]`. The semgrep JS taint rule `remote-property-injection`
+# flags these bracket accesses, but the index is a local loop variable, not
+# attacker-controlled input, so findings whose matched lines carry this
+# fixed-prefix bracket idiom are suppressed.
+_JQUERY_DIMENSION_BRACKET_PATTERN = re.compile(
+    r'\["(?:inner|client|scroll|offset)"\s*\+\s*[A-Za-z_$][\w$]*\]'
+)
+
+
+def is_jquery_dimension_remote_property_injection(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Report whether a remote-property-injection finding is minified jQuery dimension access.
+
+    The semgrep JS taint rule `remote-property-injection` flags bracket object
+    notation whose index is tainted, but minified jQuery's dimension helpers
+    index DOM elements with a fixed property prefix concatenated to an internal
+    iteration variable (`e["inner" + a]`, `e["scroll" + a]`, ...). The index
+    there is not attacker-controlled, so findings matching that fixed-prefix
+    bracket idiom are not real remote property injections.
+
+    Args:
+        vulnerability: Semgrep json output of a given vulnerability.
+
+    Returns:
+        True when the finding is the minified jQuery dimension access that
+        should be suppressed, False otherwise.
+    """
+    check_id = vulnerability.get("check_id") or ""
+    if check_id.split(".")[-1] != _REMOTE_PROPERTY_INJECTION_RULE:
+        return False
+
+    lines = (vulnerability.get("extra") or {}).get("lines", "")
+    return _JQUERY_DIMENSION_BRACKET_PATTERN.search(lines) is not None
+
 
 def construct_repository_asset_directory_name(
     repository_url: str, commit_hash: str
@@ -310,6 +349,8 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_jquery_dimension_remote_property_injection(vulnerability) is True:
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))

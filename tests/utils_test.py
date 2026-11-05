@@ -338,3 +338,122 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+def _remote_property_injection_vulnerability(
+    lines: str,
+    *,
+    check_id: str = (
+        "javascript.express.security.audit.remote-property-injection"
+        ".remote-property-injection"
+    ),
+) -> dict[str, Any]:
+    """Build a semgrep finding for the remote-property-injection rule."""
+    return {
+        "check_id": check_id,
+        "start": {"col": 174, "line": 3192, "offset": 0},
+        "end": {"col": 190, "line": 3192, "offset": 16},
+        "path": "/code/jquery.min.js",
+        "extra": {
+            "lines": lines,
+            "message": (
+                "Remote Property Injection: Bracket object notation with user "
+                "input is present, this might allow an attacker to access all "
+                "properties of the object and even it's prototype. Use literal "
+                "values for object properties."
+            ),
+            "metadata": {
+                "impact": "MEDIUM",
+                "technology": ["express"],
+                "references": [],
+            },
+            "metavars": {},
+        },
+    }
+
+
+def testIsJQueryDimensionRemotePropertyInjection_whenJQueryDimensionAccess_returnsTrue() -> (
+    None
+):
+    """Minified jQuery `e["inner" + a]` style dimension access is suppressed."""
+    vulnerability = _remote_property_injection_vulnerability(
+        lines=(
+            'return x(e) ? 0 === o.indexOf("outer") ? e["inner" + a] : '
+            'e.document.documentElement["client" + a] : 9 === e.nodeType ? '
+            '(r = e.documentElement, Math.max(e.body["scroll" + a], '
+            'r["scroll" + a], e.body["offset" + a], r["offset" + a], '
+            'r["client" + a])) : void 0 === n ? S.css(e, t, i) : '
+            "S.style(e, t, n, i)"
+        )
+    )
+
+    assert utils.is_jquery_dimension_remote_property_injection(vulnerability) is True
+
+
+def testIsJQueryDimensionRemotePropertyInjection_whenGenuineInjection_returnsFalse() -> (
+    None
+):
+    """A bare tainted bracket index is still reported."""
+    vulnerability = _remote_property_injection_vulnerability(
+        lines="myObj[req.query.prop] = function() {};"
+    )
+
+    assert utils.is_jquery_dimension_remote_property_injection(vulnerability) is False
+
+
+def testIsJQueryDimensionRemotePropertyInjection_whenOtherRule_returnsFalse() -> None:
+    """Findings from other rules are never suppressed by this filter."""
+    vulnerability = _remote_property_injection_vulnerability(
+        lines='e["inner" + a]',
+        check_id="javascript.browser.security.eval-detected.eval-detected",
+    )
+
+    assert utils.is_jquery_dimension_remote_property_injection(vulnerability) is False
+
+
+def testIsJQueryDimensionRemotePropertyInjection_whenMissingExtra_returnsFalse() -> (
+    None
+):
+    """A finding without `extra` data is never suppressed."""
+    vulnerability = _remote_property_injection_vulnerability(lines='e["inner" + a]')
+    vulnerability["extra"] = {}
+
+    assert utils.is_jquery_dimension_remote_property_injection(vulnerability) is False
+
+
+def testParseResults_whenJQueryDimensionFinding_doesNotYieldVulnerability() -> None:
+    """Minified jQuery dimension remote-property-injection findings are dropped."""
+    json_output: dict[str, Any] = {
+        "path": "/code/jquery.min.js",
+        "results": [
+            _remote_property_injection_vulnerability(
+                lines=(
+                    'return x(e) ? 0 === o.indexOf("outer") ? e["inner" + a] : '
+                    'e.document.documentElement["client" + a] : 9 === e.nodeType ? '
+                    '(r = e.documentElement, Math.max(e.body["scroll" + a], '
+                    'r["scroll" + a], e.body["offset" + a], r["offset" + a], '
+                    'r["client" + a])) : void 0 === n ? S.css(e, t, i) : '
+                    "S.style(e, t, n, i)"
+                )
+            )
+        ],
+    }
+
+    assert next(utils.parse_results(json_output), None) is None
+
+
+def testParseResults_whenGenuineInjectionFinding_yieldsVulnerability() -> None:
+    """Genuine remote-property-injection findings are still reported."""
+    json_output: dict[str, Any] = {
+        "path": "/code/app.js",
+        "results": [
+            _remote_property_injection_vulnerability(
+                lines="myObj[req.query.prop] = function() {};"
+            )
+        ],
+    }
+
+    vulnerabilities = list(utils.parse_results(json_output))
+
+    assert len(vulnerabilities) == 1
+    assert vulnerabilities[0].entry.title == "Remote Property Injection"
