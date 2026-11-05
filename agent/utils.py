@@ -38,6 +38,38 @@ RISK_RATING_MAPPING = {
 
 logger = logging.getLogger(__name__)
 
+_EVAL_DETECTED_RULE = "eval-detected"
+# The Cordova native-bridge message handler evaluates its own message-queue
+# payload with `eval(message.slice(1))`, where `message` is framework data, not
+# application-controlled input. The semgrep JS audit rule `eval-detected`
+# cannot tell this framework/compatibility eval apart from an application
+# code-injection sink, so findings matching this exact call are suppressed.
+_CORDOVA_BRIDGE_EVAL_PATTERN = re.compile(r"eval\(\s*message\.slice\(1\)\s*\)")
+
+
+def is_cordova_bridge_eval_detected(vulnerability: dict[str, Any]) -> bool:
+    """Report whether an eval-detected finding is Cordova's native-bridge handler.
+
+    The semgrep JS browser audit rule `eval-detected` flags every non-constant
+    `eval(...)` call, including the Cordova native-bridge message handler's
+    `eval(message.slice(1))`, where `message` is the framework's own message
+    payload rather than externally controlled input. Findings matching that
+    exact framework call are not application code-injection sinks.
+
+    Args:
+        vulnerability: Semgrep json output of a given vulnerability.
+
+    Returns:
+        True when the finding is the Cordova bridge eval that should be
+        suppressed, False otherwise.
+    """
+    check_id = vulnerability.get("check_id") or ""
+    if check_id.split(".")[-1] != _EVAL_DETECTED_RULE:
+        return False
+
+    lines = (vulnerability.get("extra") or {}).get("lines", "")
+    return _CORDOVA_BRIDGE_EVAL_PATTERN.search(lines) is not None
+
 
 def construct_repository_asset_directory_name(
     repository_url: str, commit_hash: str
@@ -310,6 +342,8 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_cordova_bridge_eval_detected(vulnerability) is True:
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))

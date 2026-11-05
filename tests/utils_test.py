@@ -338,3 +338,104 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+def _eval_detected_vulnerability(
+    lines: str,
+    *,
+    check_id: str = "javascript.browser.security.eval-detected.eval-detected",
+) -> dict[str, Any]:
+    """Build a semgrep finding for the eval-detected rule."""
+    return {
+        "check_id": check_id,
+        "start": {"col": 17, "line": 1138, "offset": 0},
+        "end": {"col": 45, "line": 1138, "offset": 28},
+        "path": "/code/cordova.js",
+        "extra": {
+            "lines": lines,
+            "message": (
+                "Eval Detected: Detected the use of eval(). eval() can be "
+                "dangerous if used to evaluate dynamic content. If this content "
+                "can be input from outside the program, this may be a code "
+                "injection vulnerability. Ensure evaluated content is not "
+                "definable by external sources."
+            ),
+            "metadata": {
+                "impact": "MEDIUM",
+                "technology": ["browser"],
+                "references": [],
+            },
+            "metavars": {},
+        },
+    }
+
+
+def testIsCordovaBridgeEvalDetected_whenBridgeEval_returnsTrue() -> None:
+    """The Cordova native-bridge `eval(message.slice(1))` call is suppressed."""
+    vulnerability = _eval_detected_vulnerability(lines="eval(message.slice(1));")
+
+    assert utils.is_cordova_bridge_eval_detected(vulnerability) is True
+
+
+def testIsCordovaBridgeEvalDetected_whenDynamicEval_returnsFalse() -> None:
+    """An eval of dynamically built application content is still reported."""
+    vulnerability = _eval_detected_vulnerability(
+        lines="eval(dynamicContent + 'possibly malicious code');"
+    )
+
+    assert utils.is_cordova_bridge_eval_detected(vulnerability) is False
+
+
+def testIsCordovaBridgeEvalDetected_whenOtherSliceOnMessage_returnsFalse() -> None:
+    """An eval of a differently sliced message is not the bridge pattern."""
+    vulnerability = _eval_detected_vulnerability(lines="eval(message.slice(2));")
+
+    assert utils.is_cordova_bridge_eval_detected(vulnerability) is False
+
+
+def testIsCordovaBridgeEvalDetected_whenOtherRule_returnsFalse() -> None:
+    """Findings from other rules are never suppressed by this filter."""
+    vulnerability = _eval_detected_vulnerability(
+        lines="eval(message.slice(1));",
+        check_id=(
+            "javascript.lang.security.detect-eval-with-expression"
+            ".detect-eval-with-expression"
+        ),
+    )
+
+    assert utils.is_cordova_bridge_eval_detected(vulnerability) is False
+
+
+def testIsCordovaBridgeEvalDetected_whenMissingExtra_returnsFalse() -> None:
+    """A finding without `extra` data is never suppressed."""
+    vulnerability = _eval_detected_vulnerability(lines="eval(message.slice(1));")
+    vulnerability["extra"] = {}
+
+    assert utils.is_cordova_bridge_eval_detected(vulnerability) is False
+
+
+def testParseResults_whenCordovaBridgeEvalFinding_doesNotYieldVulnerability() -> None:
+    """Cordova bridge eval-detected findings are dropped."""
+    json_output: dict[str, Any] = {
+        "path": "/code/cordova.js",
+        "results": [_eval_detected_vulnerability(lines="eval(message.slice(1));")],
+    }
+
+    assert next(utils.parse_results(json_output), None) is None
+
+
+def testParseResults_whenDynamicEvalFinding_yieldsVulnerability() -> None:
+    """Application eval-detected findings are still reported."""
+    json_output: dict[str, Any] = {
+        "path": "/code/app.js",
+        "results": [
+            _eval_detected_vulnerability(
+                lines="eval(dynamicContent + 'possibly malicious code');"
+            )
+        ],
+    }
+
+    vulnerabilities = list(utils.parse_results(json_output))
+
+    assert len(vulnerabilities) == 1
+    assert vulnerabilities[0].entry.title == "Eval Detected"
