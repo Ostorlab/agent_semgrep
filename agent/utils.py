@@ -1,11 +1,14 @@
 """Utilities for Semgrep Agent"""
 
+import ast
 import dataclasses
+import io
 import json
 import logging
 import mimetypes
 import os
 import re
+import tokenize
 from collections.abc import Iterator
 from typing import Any
 from urllib import parse
@@ -37,9 +40,6 @@ RISK_RATING_MAPPING = {
 }
 
 _DIRECT_USE_OF_JINJA2_RULE = "direct-use-of-jinja2"
-_AUTOESCAPE_ENABLED_PATTERN = re.compile(
-    r"\b(?:jinja2\.)?Environment\(\s*(?:[^()]|\([^)]*\))*\bautoescape\s*=\s*True\b"
-)
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,43 @@ def is_autoescape_enabled_direct_use_of_jinja2(
     if check_id.split(".")[-1] != _DIRECT_USE_OF_JINJA2_RULE:
         return False
     lines = vulnerability.get("extra", {}).get("lines", "")
-    return _AUTOESCAPE_ENABLED_PATTERN.search(lines) is not None
+    constructor: list[tuple[int, str]] = []
+    depth = 0
+    try:
+        # Parse complete constructors even when Semgrep truncates the later render call.
+        for token in tokenize.generate_tokens(io.StringIO(lines).readline):
+            if len(constructor) == 0:
+                if token.type == tokenize.NAME and token.string == "Environment":
+                    constructor.append((token.type, token.string))
+            elif len(constructor) == 1 and token.string != "(":
+                constructor = []
+            else:
+                constructor.append((token.type, token.string))
+                if token.string == "(":
+                    depth += 1
+                elif token.string == ")":
+                    depth -= 1
+                    if depth == 0:
+                        call = ast.parse(
+                            tokenize.untokenize(constructor), mode="eval"
+                        ).body
+                        if (
+                            isinstance(call, ast.Call)
+                            and all(
+                                keyword.arg is not None for keyword in call.keywords
+                            )
+                            and any(
+                                keyword.arg == "autoescape"
+                                and isinstance(keyword.value, ast.Constant)
+                                and keyword.value.value is True
+                                for keyword in call.keywords
+                            )
+                        ):
+                            return True
+                        constructor = []
+    except (SyntaxError, tokenize.TokenError):
+        return False
+    return False
 
 
 def parse_results(

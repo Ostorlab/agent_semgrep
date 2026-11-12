@@ -435,3 +435,30 @@ def testParseResults_whenAutoescapeNotEnabledDirectJinja2_isReported() -> None:
 
     assert len(vulnerabilities) == 1
     assert vulnerabilities[0].entry.title == "Direct Use Of Jinja2"
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        "Environment(\n    loader=loader,\n    # autoescape=True\n)",
+        'Environment("autoescape=True")',
+        'Environment("text, autoescape=True")',
+        "Environment(loader=Loader(autoescape=True))",
+        "Environment(autoescape=TrueValue)",
+        "Environment(autoescape=True and False)",
+        "Environment(autoescape=True if flag else False)",
+        "Environment(autoescape=True, **options)",
+        "# Environment(autoescape=True)\nEnvironment()",
+        "'Environment(autoescape=True)'; Environment()",
+        "Environment(",
+    ],
+)
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenSettingIsNotTrueKeyword_returnsFalse(
+    lines: str,
+) -> None:
+    vulnerability = {
+        "check_id": "python.flask.security.direct-use-of-jinja2.direct-use-of-jinja2",
+        "extra": {"lines": lines},
+    }
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is False
