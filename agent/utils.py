@@ -29,6 +29,25 @@ LINE_SIZE_MAX = 5000
 DOWNLOAD_REQUEST_TIMEOUT = 60
 NUMBER_RETRIES = 3
 
+# Upstream semgrep registry rules are downloaded fresh at scan time (--config auto),
+# so rule-level false positives are filtered agent-side here.
+_INSUFFICIENT_POSTMESSAGE_ORIGIN_VALIDATION_RULE = (
+    "insufficient-postmessage-origin-validation"
+)
+# A `message` event listener registration, e.g. window.addEventListener("message", ...).
+_MESSAGE_LISTENER_PATTERN = re.compile(r"""addEventListener\s*\(\s*["']message["']""")
+# The handler is scoped to a fixed command name, e.g. data.command === "nimbusMute".
+_MESSAGE_COMMAND_GUARD_PATTERN = re.compile(
+    r"""\.command\s*(?:===|==|!==|!=)\s*["'][^"']+["']"""
+)
+# The handler only toggles a boolean mute flag from the message payload, e.g.
+# `window.nimbus.muted = data.muted;` — no message data reaches a DOM/navigation/eval sink.
+_MESSAGE_MUTE_FLAG_PATTERN = re.compile(
+    r"""\.muted\s*=\s*(?:data|event\.data|e\.data|evt\.data|msg\.data|message\.data)\.muted\b"""
+)
+# The handler stops propagation: a self-contained SDK/bridge handler.
+_MESSAGE_STOP_PROPAGATION_PATTERN = re.compile(r"""stopImmediatePropagation\s*\(""")
+
 RISK_RATING_MAPPING = {
     "UNKNOWN": vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": vulnerability_mixin.RiskRating.LOW,
@@ -280,6 +299,42 @@ def _prepare_vulnerability_location(
     )
 
 
+def is_scoped_message_handler_insufficient_postmessage_origin_validation(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Report whether a postmessage finding is a benign scoped SDK message handler.
+
+    The upstream semgrep rule `insufficient-postmessage-origin-validation` flags any
+    `message` event listener whose handler does not validate `event.origin`. SDK/bridge
+    handlers that are scoped to a fixed command name and only toggle a boolean flag (a
+    mute toggle) from the message payload cannot be abused for the cross-origin script
+    injection the rule warns about, so they are filtered out.
+
+    Args:
+        vulnerability: The semgrep finding to inspect.
+
+    Returns:
+        True when the finding is the benign scoped-handler idiom and should be suppressed.
+    """
+    if (
+        str(vulnerability.get("check_id", "")).split(".")[-1]
+        != _INSUFFICIENT_POSTMESSAGE_ORIGIN_VALIDATION_RULE
+    ):
+        return False
+    lines = vulnerability.get("extra", {}).get("lines")
+    if lines is None:
+        return False
+    return all(
+        pattern.search(lines) is not None
+        for pattern in (
+            _MESSAGE_LISTENER_PATTERN,
+            _MESSAGE_COMMAND_GUARD_PATTERN,
+            _MESSAGE_MUTE_FLAG_PATTERN,
+            _MESSAGE_STOP_PROPAGATION_PATTERN,
+        )
+    )
+
+
 def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
@@ -310,6 +365,10 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        ):
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))

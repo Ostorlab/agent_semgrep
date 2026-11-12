@@ -338,3 +338,138 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+_POSTMESSAGE_ORIGIN_VALIDATION_CHECK_ID = (
+    "javascript.browser.security.insufficient-postmessage-origin-validation."
+    "insufficient-postmessage-origin-validation"
+)
+
+
+def _postmessage_origin_vulnerability(
+    lines: str,
+    *,
+    check_id: str = _POSTMESSAGE_ORIGIN_VALIDATION_CHECK_ID,
+) -> dict[str, Any]:
+    """Build a semgrep finding for the postmessage-origin-validation rule."""
+    return {
+        "check_id": check_id,
+        "start": {"line": 85, "col": 1},
+        "extra": {
+            "message": "No validation of origin is done by the addEventListener API.",
+            "lines": lines,
+            "metadata": {
+                "technology": ["browser"],
+                "impact": "LOW",
+                "references": [],
+            },
+            "fix": "",
+        },
+        "path": "/code/static_ad_volume.js",
+    }
+
+
+SCOPED_SDK_MUTE_HANDLER_LINES = """window.addEventListener("message", event => {
+    const data = event.data;
+    if (typeof data === "object" && data !== null && data.command === "nimbusMute" && typeof data.muted === "boolean") {
+        window.nimbus.muted = data.muted;
+        event.stopImmediatePropagation()
+    }
+});"""
+
+
+def testIsScopedMessageHandler_whenScopedSdkMuteHandler_returnsTrue() -> None:
+    """A message handler scoped to a fixed command that only toggles a mute flag is benign."""
+    vulnerability = _postmessage_origin_vulnerability(SCOPED_SDK_MUTE_HANDLER_LINES)
+
+    assert (
+        utils.is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is True
+    )
+
+
+def testParseResults_whenScopedSdkMuteHandler_emitsNoVulnerability() -> None:
+    """The scoped SDK mute handler FP is suppressed end to end."""
+    json_output = {
+        "path": "/code/static_ad_volume.js",
+        "results": [_postmessage_origin_vulnerability(SCOPED_SDK_MUTE_HANDLER_LINES)],
+    }
+
+    assert list(utils.parse_results(json_output)) == []
+
+
+def testIsScopedMessageHandler_whenDataReachesSink_returnsFalse() -> None:
+    """A handler writing message data into the DOM without any guard is still reported."""
+    lines = """window.addEventListener("message", event => {
+    document.getElementById("content").innerHTML = event.data.html;
+});"""
+    vulnerability = _postmessage_origin_vulnerability(lines)
+
+    assert (
+        utils.is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
+
+
+def testParseResults_whenDataReachesSink_stillEmitsVulnerability() -> None:
+    """A genuine postmessage XSS handler is still reported."""
+    lines = """window.addEventListener("message", event => {
+    document.getElementById("content").innerHTML = event.data.html;
+});"""
+    json_output = {
+        "path": "/code/app.js",
+        "results": [_postmessage_origin_vulnerability(lines)],
+    }
+
+    result = list(utils.parse_results(json_output))
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Insufficient Postmessage Origin Validation"
+
+
+def testIsScopedMessageHandler_whenCommandGuardButNavigation_returnsFalse() -> None:
+    """A command-guarded handler that navigates from message data is still reported."""
+    lines = """window.addEventListener("message", event => {
+    if (event.data.command === "loadUrl") {
+        window.location = event.data.url;
+    }
+});"""
+    vulnerability = _postmessage_origin_vulnerability(lines)
+
+    assert (
+        utils.is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
+
+
+def testIsScopedMessageHandler_whenOtherRule_returnsFalse() -> None:
+    """The filter never suppresses a different check id."""
+    vulnerability = _postmessage_origin_vulnerability(
+        SCOPED_SDK_MUTE_HANDLER_LINES,
+        check_id="javascript.browser.security.eval-detected.eval-detected",
+    )
+
+    assert (
+        utils.is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
+
+
+def testIsScopedMessageHandler_whenLinesMissing_returnsFalse() -> None:
+    """A finding without matched lines is never suppressed."""
+    vulnerability = {"check_id": _POSTMESSAGE_ORIGIN_VALIDATION_CHECK_ID}
+
+    assert (
+        utils.is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
