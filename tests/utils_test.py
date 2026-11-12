@@ -473,3 +473,42 @@ def testIsScopedMessageHandler_whenLinesMissing_returnsFalse() -> None:
         )
         is False
     )
+
+
+@pytest.mark.parametrize(
+    "sink",
+    [
+        'document.getElementById("ad").innerHTML = data.html;',
+        "eval(data.code);",
+        "document.write(data.html);",
+        "window.location.href = data.url;",
+        "window.location = data.url;",
+        'element.insertAdjacentHTML("beforeend", data.html);',
+        "frame.src = data.url;",
+        "link.href = data.url;",
+        'element["innerHTML"] = data.html;',
+        'element.setAttribute("src", data.url);',
+        "setTimeout(data.code, 0);",
+        "Function(data.code)();",
+        "frame.srcdoc = data.html;",
+        "window.open(data.url);",
+        "$('#ad').html(data.html);",
+        "handleMessage(data);",
+    ],
+)
+def testParseResults_whenMuteHandlerAlsoContainsSink_keepsFinding(sink: str) -> None:
+    lines = SCOPED_SDK_MUTE_HANDLER_LINES.replace(
+        "window.nimbus.muted = data.muted;",
+        f"window.nimbus.muted = data.muted;\n{sink}",
+    )
+    result = list(
+        utils.parse_results(
+            {
+                "path": "/code/app.js",
+                "results": [_postmessage_origin_vulnerability(lines)],
+            }
+        )
+    )
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Insufficient Postmessage Origin Validation"
