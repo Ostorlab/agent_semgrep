@@ -39,7 +39,7 @@ RISK_RATING_MAPPING = {
     "HIGH": vulnerability_mixin.RiskRating.HIGH,
 }
 
-_DIRECT_USE_OF_JINJA2_RULE = "direct-use-of-jinja2"
+DIRECT_USE_OF_JINJA2_RULE = "direct-use-of-jinja2"
 
 logger = logging.getLogger(__name__)
 
@@ -301,14 +301,15 @@ def is_autoescape_enabled_direct_use_of_jinja2(
 
     Returns:
         True when the finding is for the direct-use-of-jinja2 rule and the
-        matched lines construct an `Environment` with `autoescape=True`.
+        matched lines construct only `Environment`s with `autoescape=True`.
     """
     check_id = vulnerability.get("check_id", "")
-    if check_id.split(".")[-1] != _DIRECT_USE_OF_JINJA2_RULE:
+    if check_id.split(".")[-1] != DIRECT_USE_OF_JINJA2_RULE:
         return False
     lines = vulnerability.get("extra", {}).get("lines", "")
     constructor: list[tuple[int, str]] = []
     depth = 0
+    found_constructor = False
     try:
         # Parse complete constructors even when Semgrep truncates the later render call.
         for token in tokenize.generate_tokens(io.StringIO(lines).readline):
@@ -327,23 +328,36 @@ def is_autoescape_enabled_direct_use_of_jinja2(
                         call = ast.parse(
                             tokenize.untokenize(constructor), mode="eval"
                         ).body
-                        if (
-                            isinstance(call, ast.Call)
-                            and all(
-                                keyword.arg is not None for keyword in call.keywords
-                            )
-                            and any(
-                                keyword.arg == "autoescape"
-                                and isinstance(keyword.value, ast.Constant)
-                                and keyword.value.value is True
-                                for keyword in call.keywords
-                            )
-                        ):
-                            return True
+                        for node in ast.walk(call):
+                            if isinstance(node, ast.Call) is False:
+                                continue
+                            if (
+                                isinstance(node.func, ast.Name)
+                                and node.func.id == "Environment"
+                                or isinstance(node.func, ast.Attribute)
+                                and node.func.attr == "Environment"
+                            ) is False:
+                                continue
+                            if (
+                                all(
+                                    keyword.arg is not None for keyword in node.keywords
+                                )
+                                and any(
+                                    keyword.arg == "autoescape"
+                                    and isinstance(keyword.value, ast.Constant)
+                                    and keyword.value.value is True
+                                    for keyword in node.keywords
+                                )
+                            ) is False:
+                                return False
+                        found_constructor = True
                         constructor = []
-    except (SyntaxError, tokenize.TokenError):
+    except SyntaxError:
         return False
-    return False
+    except tokenize.TokenError:
+        # A truncated render is safe to ignore only outside a constructor.
+        pass
+    return found_constructor is True and len(constructor) == 0
 
 
 def parse_results(

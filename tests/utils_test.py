@@ -462,3 +462,51 @@ def testIsAutoescapeEnabledDirectUseOfJinja2_whenSettingIsNotTrueKeyword_returns
     }
 
     assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is False
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        "safe = Environment(autoescape=True); unsafe = Environment()",
+        "unsafe = Environment(); safe = Environment(autoescape=True)",
+        "Environment(autoescape=True); Environment(autoescape=False)",
+        "Environment(autoescape=False); Environment(autoescape=True)",
+        "Environment(loader=Environment(), autoescape=True)",
+        "Environment(loader=Environment(autoescape=True))",
+        "Environment(loader=Loader(Environment()), autoescape=True)",
+        "Environment(autoescape=True); Environment(",
+        "Environment(); Environment(autoescape=True).render(",
+    ],
+)
+def testParseResults_whenAnyJinjaConstructorIsUnsafe_retainsFinding(
+    lines: str,
+) -> None:
+    """A safe sibling or outer constructor cannot hide an unsafe constructor."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(lines)
+    semgrep_json_output = {"results": [vulnerability], "path": "/code/app.py"}
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is False
+    vulnerabilities = list(utils.parse_results(semgrep_json_output))
+    assert len(vulnerabilities) == 1
+    assert vulnerabilities[0].entry.title == "Direct Use Of Jinja2"
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        "Environment(autoescape=True); jinja2.Environment(autoescape=True)",
+        "Environment(loader=Environment(autoescape=True), autoescape=True)",
+        "Environment(autoescape=True); Environment(autoescape=True).render(",
+        "Environment(autoescape=True) # Environment()",
+        'Environment(autoescape=True).from_string("Environment()").render(',
+    ],
+)
+def testParseResults_whenAllJinjaConstructorsAreSafe_suppressesFinding(
+    lines: str,
+) -> None:
+    """Safe constructors remain suppressible, including truncated render snippets."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(lines)
+    semgrep_json_output = {"results": [vulnerability], "path": "/code/app.py"}
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is True
+    assert list(utils.parse_results(semgrep_json_output)) == []
