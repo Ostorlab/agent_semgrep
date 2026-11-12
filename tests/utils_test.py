@@ -739,6 +739,8 @@ def testIsAutoescapeEnabledDirectUseOfJinja2_whenSettingIsNotTrueKeyword_returns
         "Environment(loader=Environment(autoescape=True))",
         "Environment(loader=Loader(Environment()), autoescape=True)",
         "Environment(autoescape=True); Environment(",
+        "Environment(autoescape=True); unsafe = (Environment\n())",
+        "Environment(autoescape=True); unsafe = (Environment # constructor\n())",
         "Environment(); Environment(autoescape=True).render(",
     ],
 )
@@ -762,6 +764,8 @@ def testParseResults_whenAnyJinjaConstructorIsUnsafe_retainsFinding(
         "Environment(loader=Environment(autoescape=True), autoescape=True)",
         "Environment(autoescape=True); Environment(autoescape=True).render(",
         "Environment(autoescape=True) # Environment()",
+        "safe = (Environment\n(autoescape=True))",
+        "safe = (Environment # constructor\n(autoescape=True))",
         'Environment(autoescape=True).from_string("Environment()").render(',
     ],
 )

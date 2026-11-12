@@ -324,6 +324,11 @@ def is_autoescape_enabled_direct_use_of_jinja2(
             if len(constructor) == 0:
                 if token.type == tokenize.NAME and token.string == "Environment":
                     constructor.append((token.type, token.string))
+            elif len(constructor) == 1 and token.type in (
+                tokenize.NL,
+                tokenize.COMMENT,
+            ):
+                continue
             elif len(constructor) == 1 and token.string != "(":
                 constructor = []
             else:
