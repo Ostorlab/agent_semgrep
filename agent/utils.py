@@ -47,6 +47,14 @@ _SCOPED_SDK_MUTE_HANDLER_PATTERN = re.compile(
     r"\}\s*\}\s*\)\s*;?\s*"
 )
 
+_LOGGER_CREDENTIAL_DISCLOSURE_RULE = "python-logger-credential-disclosure"
+# Credential keywords the upstream rule looks for inside the logged format string
+# (rule regex: (?i).*(api.key|secret|credential|token|password).*\%s.*).
+_LOGGER_CREDENTIAL_KEYWORDS = ("api.key", "secret", "credential", "token", "password")
+_LOGGER_CREDENTIAL_FORMAT_STRING_PATTERN = re.compile(
+    r"""(['"])([^'"]*%[sd][^'"]*)\1"""
+)
+
 RISK_RATING_MAPPING = {
     "UNKNOWN": vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": vulnerability_mixin.RiskRating.LOW,
@@ -317,6 +325,56 @@ def is_scoped_message_handler_insufficient_postmessage_origin_validation(
     return _SCOPED_SDK_MUTE_HANDLER_PATTERN.fullmatch(lines.strip()) is not None
 
 
+def _logger_credential_format_string(vulnerability: dict[str, Any]) -> str:
+    """Extract the format string logged by a python-logger-credential-disclosure finding.
+
+    The upstream rule captures the first argument of the logger call in the
+    `$FORMAT_STRING` metavariable. When the metavariable is missing (for example
+    with an older engine), fall back to the first quoted string carrying a
+    `%s`/`%d` placeholder in the matched lines.
+
+    Args:
+        vulnerability: Semgrep json output of a given vulnerability.
+
+    Returns:
+        The logged format string, or the matched lines when none is found.
+    """
+    metavars = vulnerability.get("extra", {}).get("metavars", {})
+    content = str(metavars.get("$FORMAT_STRING", {}).get("abstract_content", ""))
+    if len(content) >= 2 and content[0] == content[-1] and content[0] in ("'", '"'):
+        content = content[1:-1]
+    if len(content) > 0:
+        return content
+    lines = str(vulnerability.get("extra", {}).get("lines", ""))
+    match = _LOGGER_CREDENTIAL_FORMAT_STRING_PATTERN.search(lines)
+    if match is not None:
+        return str(match.group(2))
+    return lines
+
+
+def is_embedded_keyword_logger_credential_disclosure(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Suppress the known token_url_missing event when no credential is named.
+
+    Unknown compound/plural labels remain reportable: a word boundary alone
+    cannot distinguish credential names from non-secret event identifiers.
+    """
+    if (
+        vulnerability.get("check_id", "").split(".")[-1]
+        != _LOGGER_CREDENTIAL_DISCLOSURE_RULE
+    ):
+        return False
+    format_string = _logger_credential_format_string(vulnerability)
+    remaining = re.sub(r"\btoken_url_missing\b", "", format_string, flags=re.IGNORECASE)
+    if remaining == format_string:
+        return False
+    return not any(
+        re.search(keyword, remaining, re.IGNORECASE) is not None
+        for keyword in _LOGGER_CREDENTIAL_KEYWORDS
+    )
+
+
 def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
@@ -350,6 +408,8 @@ def parse_results(
         if is_scoped_message_handler_insufficient_postmessage_origin_validation(
             vulnerability
         ):
+            continue
+        if is_embedded_keyword_logger_credential_disclosure(vulnerability):
             continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))

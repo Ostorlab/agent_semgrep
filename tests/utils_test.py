@@ -340,6 +340,270 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     assert result is False
 
 
+def _logger_credential_disclosure_vulnerability(
+    lines: str,
+    *,
+    format_string: str | None = None,
+    check_id: str = (
+        "python.lang.security.audit.logging.python-logger-credential-disclosure"
+    ),
+) -> dict[str, Any]:
+    """Build a python-logger-credential-disclosure finding mirroring the registry
+    check id and the `$FORMAT_STRING` metavariable the rule captures."""
+    metavars = {
+        "$LOGGER_OBJ": {"abstract_content": "logger"},
+        "$LOGGER_CALL": {"abstract_content": "warning"},
+    }
+    if format_string is not None:
+        metavars["$FORMAT_STRING"] = {"abstract_content": format_string}
+    return {
+        "check_id": check_id,
+        "path": "logger.py",
+        "start": {"line": 1, "col": 1},
+        "end": {"line": 5, "col": 1},
+        "extra": {
+            "lines": lines,
+            "message": "Detected a python logger call with a potential hardcoded "
+            "secret being logged.",
+            "metavars": metavars,
+            "metadata": {"technology": ["python"], "impact": "MEDIUM"},
+            "severity": "WARNING",
+        },
+    }
+
+
+LOGGER_CREDENTIAL_FP_LINES = (
+    "logger.warning(\n"
+    '    "oauth_refresh.token_url_missing connector_id=%s tenant=%s '
+    'connector_type=%s",\n'
+    "    connector.id,\n"
+    "    tenant_id,\n"
+    "    connector_type,\n"
+    ")"
+)
+LOGGER_CREDENTIAL_FP_FORMAT_STRING = (
+    '"oauth_refresh.token_url_missing connector_id=%s tenant=%s connector_type=%s"'
+)
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenKeywordEmbedded_returnsTrue() -> (
+    None
+):
+    """The credential keyword only appears inside the event identifier
+    token_url_missing, so the finding is a false positive."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        LOGGER_CREDENTIAL_FP_LINES,
+        format_string=LOGGER_CREDENTIAL_FP_FORMAT_STRING,
+    )
+
+    assert utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is True
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenMetavarMissing_returnsTrue() -> (
+    None
+):
+    """Without the $FORMAT_STRING metavar the format string is recovered from the
+    matched lines, so the embedded-keyword finding is still suppressed."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        LOGGER_CREDENTIAL_FP_LINES
+    )
+
+    assert utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is True
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenStandaloneToken_returnsFalse() -> (
+    None
+):
+    """A format string naming the credential as a standalone word is a genuine
+    disclosure and must stay reported."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        'logger.info("token: %s", token)',
+        format_string='"token: %s"',
+    )
+
+    assert (
+        utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is False
+    )
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenStandaloneApiKey_returnsFalse() -> (
+    None
+):
+    """The upstream rule's own `api key %s` test case is not suppressed."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        'logger.error("api call using api key %s failed", api_key)',
+        format_string='"api call using api key %s failed"',
+    )
+
+    assert (
+        utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is False
+    )
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenStandaloneSecret_returnsFalse() -> (
+    None
+):
+    """The upstream rule's own `my secret value: %s` test case is not suppressed."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        'logger.info("here is my secret value: %s", secret)',
+        format_string='"here is my secret value: %s"',
+    )
+
+    assert (
+        utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is False
+    )
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenStandalonePassword_returnsFalse() -> (
+    None
+):
+    """A format string logging a password with a standalone keyword is not suppressed."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        'logger.debug("password: %s", password)',
+        format_string='"password: %s"',
+    )
+
+    assert (
+        utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is False
+    )
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenSingleQuotedFormatString_returnsTrue() -> (
+    None
+):
+    """Single-quoted format strings are handled the same way."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        "logger.warning('oauth_refresh.token_url_missing connector_id=%s', cid)",
+        format_string="'oauth_refresh.token_url_missing connector_id=%s'",
+    )
+
+    assert utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is True
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenOtherRule_returnsFalse() -> (
+    None
+):
+    """The suppression is scoped to the python-logger-credential-disclosure rule."""
+    vulnerability = _logger_credential_disclosure_vulnerability(
+        LOGGER_CREDENTIAL_FP_LINES,
+        format_string=LOGGER_CREDENTIAL_FP_FORMAT_STRING,
+        check_id="python.lang.security.audit.some-other-rule",
+    )
+
+    assert (
+        utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is False
+    )
+
+
+def testIsEmbeddedKeywordLoggerCredentialDisclosure_whenNoExtra_returnsFalse() -> None:
+    """A finding with no extractable format string is never suppressed."""
+    vulnerability = {
+        "check_id": "python.lang.security.audit.logging.python-logger-credential-disclosure"
+    }
+
+    assert (
+        utils.is_embedded_keyword_logger_credential_disclosure(vulnerability) is False
+    )
+
+
+def testParseResults_whenLoggerCredentialKeywordEmbedded_suppressesFinding() -> None:
+    """The exact false positive observed on AiSOC-main is not reported."""
+    json_output = {
+        "results": [
+            _logger_credential_disclosure_vulnerability(
+                LOGGER_CREDENTIAL_FP_LINES,
+                format_string=LOGGER_CREDENTIAL_FP_FORMAT_STRING,
+            )
+        ],
+        "path": "logger.py",
+    }
+
+    assert list(utils.parse_results(json_output)) == []
+
+
+def testParseResults_whenLoggerCredentialKeywordEmbeddedWithoutMetavar_suppressesFinding() -> (
+    None
+):
+    """The same false positive is suppressed through the lines fallback."""
+    json_output = {
+        "results": [
+            _logger_credential_disclosure_vulnerability(LOGGER_CREDENTIAL_FP_LINES)
+        ],
+        "path": "logger.py",
+    }
+
+    assert list(utils.parse_results(json_output)) == []
+
+
+def testParseResults_whenLoggerLogsStandaloneToken_keepsFinding() -> None:
+    """A genuine token disclosure still yields the vulnerability."""
+    json_output = {
+        "results": [
+            _logger_credential_disclosure_vulnerability(
+                'logger.info("token: %s", token)',
+                format_string='"token: %s"',
+            )
+        ],
+        "path": "logger.py",
+    }
+
+    findings = list(utils.parse_results(json_output))
+
+    assert len(findings) == 1
+    assert findings[0].entry.title == "Python Logger Credential Disclosure"
+
+
+def testParseResults_whenLoggerCredentialKeywordEmbeddedOtherRule_keepsFinding() -> (
+    None
+):
+    """Findings from other rules with the same lines are still reported."""
+    json_output = {
+        "results": [
+            _logger_credential_disclosure_vulnerability(
+                LOGGER_CREDENTIAL_FP_LINES,
+                format_string=LOGGER_CREDENTIAL_FP_FORMAT_STRING,
+                check_id="python.lang.security.audit.some-other-rule",
+            )
+        ],
+        "path": "logger.py",
+    }
+
+    assert len(list(utils.parse_results(json_output))) == 1
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "credentials",
+        "tokens",
+        "secrets",
+        "passwords",
+        "api keys",
+        "access_token",
+        "refresh_token",
+        "client_secret",
+        "user_password",
+        "auth_token",
+        "bearer_token",
+        "mytoken",
+        "token_url_missing token",
+        "token_url_missing access_token",
+        "token_url_missing credentials",
+    ],
+)
+def testParseResults_whenCredentialNameIsPluralOrCompound_keepsFinding(
+    label: str,
+) -> None:
+    format_string = f"{label}: %s"
+    finding = _logger_credential_disclosure_vulnerability(
+        f'logger.info("{format_string}", value)', format_string=format_string
+    )
+
+    assert (
+        len(list(utils.parse_results({"results": [finding], "path": "logger.py"}))) == 1
+    )
+
+
 _POSTMESSAGE_ORIGIN_VALIDATION_CHECK_ID = (
     "javascript.browser.security.insufficient-postmessage-origin-validation."
     "insufficient-postmessage-origin-validation"
