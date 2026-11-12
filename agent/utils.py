@@ -36,6 +36,11 @@ RISK_RATING_MAPPING = {
     "HIGH": vulnerability_mixin.RiskRating.HIGH,
 }
 
+_DIRECT_USE_OF_JINJA2_RULE = "direct-use-of-jinja2"
+_AUTOESCAPE_ENABLED_PATTERN = re.compile(
+    r"\b(?:jinja2\.)?Environment\(\s*(?:[^()]|\([^)]*\))*\bautoescape\s*=\s*True\b"
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -280,6 +285,31 @@ def _prepare_vulnerability_location(
     )
 
 
+def is_autoescape_enabled_direct_use_of_jinja2(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Report whether a direct-use-of-jinja2 finding builds an autoescaping Environment.
+
+    The semgrep rule `direct-use-of-jinja2` warns that constructing a Jinja2
+    environment directly may bypass HTML escaping and open the application to
+    XSS. That risk does not apply when the `Environment` constructor explicitly
+    enables autoescaping with `autoescape=True`, so such findings are
+    suppressed.
+
+    Args:
+        vulnerability: A semgrep vulnerability dict.
+
+    Returns:
+        True when the finding is for the direct-use-of-jinja2 rule and the
+        matched lines construct an `Environment` with `autoescape=True`.
+    """
+    check_id = vulnerability.get("check_id", "")
+    if check_id.split(".")[-1] != _DIRECT_USE_OF_JINJA2_RULE:
+        return False
+    lines = vulnerability.get("extra", {}).get("lines", "")
+    return _AUTOESCAPE_ENABLED_PATTERN.search(lines) is not None
+
+
 def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
@@ -310,6 +340,8 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_autoescape_enabled_direct_use_of_jinja2(vulnerability):
+            continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
         title = construct_vulnerability_title(vulnerability.get("check_id"))

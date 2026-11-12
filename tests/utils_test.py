@@ -338,3 +338,100 @@ def testShouldExcludePath_whenRegexIsInvalid_shouldSkipPatternAndReturnFalse() -
     result = utils.should_exclude_path("/workspace/a.py", ["[invalid("])
 
     assert result is False
+
+
+def _direct_use_of_jinja2_vulnerability(
+    lines: str,
+    *,
+    check_id: str = "python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2",
+) -> dict[str, Any]:
+    """Build a direct-use-of-jinja2 finding for the given matched lines."""
+    return {"check_id": check_id, "extra": {"lines": lines}}
+
+
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenAutoescapeTrue_returnsTrue() -> None:
+    """An Environment(autoescape=True) construct does not bypass HTML escaping."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(
+        "page = Environment(autoescape=True).from_string(test_html).render("
+    )
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is True
+
+
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenAutoescapeTrueInNestedLoader_returnsTrue() -> (
+    None
+):
+    """Autoescape=True is detected even when the constructor carries other arguments."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(
+        "env = Environment(loader=FileSystemLoader('.'), autoescape=True)"
+    )
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is True
+
+
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenJinja2Prefixed_returnsTrue() -> None:
+    """The jinja2.Environment(autoescape=True) form is also autoescaping."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(
+        "env = jinja2.Environment(autoescape=True)"
+    )
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is True
+
+
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenAutoescapeFalse_returnsFalse() -> None:
+    """Autoescaping explicitly disabled is not suppressed."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(
+        "page = Environment(autoescape=False).from_string(test_html).render("
+    )
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is False
+
+
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenNoAutoescapeArg_returnsFalse() -> None:
+    """An Environment() without autoescape keeps the XSS warning."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(
+        "page = Environment().from_string(test_html).render("
+    )
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is False
+
+
+def testIsAutoescapeEnabledDirectUseOfJinja2_whenOtherRule_returnsFalse() -> None:
+    """Findings for other rules are never suppressed."""
+    vulnerability = _direct_use_of_jinja2_vulnerability(
+        "page = Environment(autoescape=True).from_string(test_html).render(",
+        check_id="python.lang.security.audit.mako-templates-detected.mako-templates-detected",
+    )
+
+    assert utils.is_autoescape_enabled_direct_use_of_jinja2(vulnerability) is False
+
+
+def testParseResults_whenAutoescapeEnabledDirectJinja2_isSuppressed() -> None:
+    """An autoescaping Environment finding is filtered out of the results."""
+    semgrep_json_output = {
+        "results": [
+            _direct_use_of_jinja2_vulnerability(
+                "page = Environment(autoescape=True).from_string(test_html).render("
+            )
+        ],
+        "path": "/code/app.py",
+    }
+
+    assert next(utils.parse_results(semgrep_json_output), None) is None
+
+
+def testParseResults_whenAutoescapeNotEnabledDirectJinja2_isReported() -> None:
+    """An Environment() without autoescape still yields a finding."""
+    semgrep_json_output = {
+        "results": [
+            _direct_use_of_jinja2_vulnerability(
+                "page = Environment().from_string(test_html).render("
+            )
+        ],
+        "path": "/code/app.py",
+    }
+
+    vulnerabilities = list(utils.parse_results(semgrep_json_output))
+
+    assert len(vulnerabilities) == 1
+    assert vulnerabilities[0].entry.title == "Direct Use Of Jinja2"
