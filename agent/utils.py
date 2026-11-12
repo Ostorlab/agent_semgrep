@@ -306,7 +306,7 @@ def _logger_credential_format_string(vulnerability: dict[str, Any]) -> str:
     content = str(metavars.get("$FORMAT_STRING", {}).get("abstract_content", ""))
     if len(content) >= 2 and content[0] == content[-1] and content[0] in ("'", '"'):
         content = content[1:-1]
-    if content:
+    if len(content) > 0:
         return content
     lines = str(vulnerability.get("extra", {}).get("lines", ""))
     match = _LOGGER_CREDENTIAL_FORMAT_STRING_PATTERN.search(lines)
@@ -318,23 +318,10 @@ def _logger_credential_format_string(vulnerability: dict[str, Any]) -> str:
 def is_embedded_keyword_logger_credential_disclosure(
     vulnerability: dict[str, Any],
 ) -> bool:
-    """Report whether a logger-credential-disclosure finding logs a format string in
-    which the credential keyword only appears embedded inside a larger identifier.
+    """Suppress the known token_url_missing event when no credential is named.
 
-    The upstream rule `python-logger-credential-disclosure` reports every logger
-    call whose format string contains a credential keyword and a `%s` placeholder
-    (`(?i).*(api.key|secret|credential|token|password).*%s.*`). A format string
-    such as `oauth_refresh.token_url_missing connector_id=%s tenant=%s
-    connector_type=%s` only matches because `token` is part of the event
-    identifier `token_url_missing`; the logged values are non-secret identifiers.
-    Suppress only those matches, while a format string naming a credential as a
-    standalone word (`token: %s`, `api key %s`) is still reported.
-
-    Args:
-        vulnerability: Semgrep json output of a given vulnerability.
-
-    Returns:
-        True when the format string carries no standalone credential keyword.
+    Unknown compound/plural labels remain reportable: a word boundary alone
+    cannot distinguish credential names from non-secret event identifiers.
     """
     if (
         vulnerability.get("check_id", "").split(".")[-1]
@@ -342,10 +329,11 @@ def is_embedded_keyword_logger_credential_disclosure(
     ):
         return False
     format_string = _logger_credential_format_string(vulnerability)
-    if not format_string:
+    remaining = re.sub(r"\btoken_url_missing\b", "", format_string, flags=re.IGNORECASE)
+    if remaining == format_string:
         return False
     return not any(
-        re.search(rf"\b{keyword}\b", format_string, re.IGNORECASE)
+        re.search(keyword, remaining, re.IGNORECASE) is not None
         for keyword in _LOGGER_CREDENTIAL_KEYWORDS
     )
 

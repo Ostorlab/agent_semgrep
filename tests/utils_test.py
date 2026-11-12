@@ -569,3 +569,36 @@ def testParseResults_whenLoggerCredentialKeywordEmbeddedOtherRule_keepsFinding()
     }
 
     assert len(list(utils.parse_results(json_output))) == 1
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "credentials",
+        "tokens",
+        "secrets",
+        "passwords",
+        "api keys",
+        "access_token",
+        "refresh_token",
+        "client_secret",
+        "user_password",
+        "auth_token",
+        "bearer_token",
+        "mytoken",
+        "token_url_missing token",
+        "token_url_missing access_token",
+        "token_url_missing credentials",
+    ],
+)
+def testParseResults_whenCredentialNameIsPluralOrCompound_keepsFinding(
+    label: str,
+) -> None:
+    format_string = f"{label}: %s"
+    finding = _logger_credential_disclosure_vulnerability(
+        f'logger.info("{format_string}", value)', format_string=format_string
+    )
+
+    assert (
+        len(list(utils.parse_results({"results": [finding], "path": "logger.py"}))) == 1
+    )
