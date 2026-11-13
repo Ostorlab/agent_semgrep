@@ -29,6 +29,24 @@ LINE_SIZE_MAX = 5000
 DOWNLOAD_REQUEST_TIMEOUT = 60
 NUMBER_RETRIES = 3
 
+# Upstream semgrep registry rules are downloaded fresh at scan time (--config auto),
+# so rule-level false positives are filtered agent-side here.
+_INSUFFICIENT_POSTMESSAGE_ORIGIN_VALIDATION_RULE = (
+    "insufficient-postmessage-origin-validation"
+)
+# Match the complete known SDK handler; extra statements must remain reportable.
+_SCOPED_SDK_MUTE_HANDLER_PATTERN = re.compile(
+    r"""window\s*\.\s*addEventListener\s*\(\s*["']message["']\s*,\s*event\s*=>\s*\{\s*"""
+    r"const\s+data\s*=\s*event\s*\.\s*data\s*;\s*"
+    r"""if\s*\(\s*typeof\s+data\s*===\s*["']object["']\s*&&\s*"""
+    r"data\s*!==\s*null\s*&&\s*"
+    r"""data\s*\.\s*command\s*===\s*["']nimbusMute["']\s*&&\s*"""
+    r"""typeof\s+data\s*\.\s*muted\s*===\s*["']boolean["']\s*\)\s*\{\s*"""
+    r"window\s*\.\s*nimbus\s*\.\s*muted\s*=\s*data\s*\.\s*muted\s*;\s*"
+    r"event\s*\.\s*stopImmediatePropagation\s*\(\s*\)\s*;?\s*"
+    r"\}\s*\}\s*\)\s*;?\s*"
+)
+
 _LOGGER_CREDENTIAL_DISCLOSURE_RULE = "python-logger-credential-disclosure"
 # Credential keywords the upstream rule looks for inside the logged format string
 # (rule regex: (?i).*(api.key|secret|credential|token|password).*\%s.*).
@@ -288,6 +306,25 @@ def _prepare_vulnerability_location(
     )
 
 
+def is_scoped_message_handler_insufficient_postmessage_origin_validation(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Suppress only the complete known Nimbus boolean mute handler.
+
+    Any additional statement or expression, including a call through an unknown
+    helper, falls outside this allowlist and keeps the original finding.
+    """
+    if (
+        str(vulnerability.get("check_id", "")).split(".")[-1]
+        != _INSUFFICIENT_POSTMESSAGE_ORIGIN_VALIDATION_RULE
+    ):
+        return False
+    lines = vulnerability.get("extra", {}).get("lines")
+    if lines is None:
+        return False
+    return _SCOPED_SDK_MUTE_HANDLER_PATTERN.fullmatch(lines.strip()) is not None
+
+
 def _logger_credential_format_string(vulnerability: dict[str, Any]) -> str:
     """Extract the format string logged by a python-logger-credential-disclosure finding.
 
@@ -368,6 +405,10 @@ def parse_results(
     path = json_output.get("path", "")
 
     for vulnerability in vulnerabilities:
+        if is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        ):
+            continue
         if is_embedded_keyword_logger_credential_disclosure(vulnerability):
             continue
         extra = vulnerability.get("extra", {})
