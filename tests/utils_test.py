@@ -642,6 +642,147 @@ SCOPED_SDK_MUTE_HANDLER_LINES = """window.addEventListener("message", event => {
 });"""
 
 
+TELEMETRY_LOG_LISTENER_LINES = """}(), window.apsOmsdkLogs = [], window.addEventListener("message", function(e) {
+                            e.data && e.data.hasOwnProperty("apsOmsdkLog") && window.apsOmsdkLogs.push(e.data.apsOmsdkLog)
+                        }), R && O) ! function() {"""
+
+
+def testIsTelemetryListener_whenInMemoryLogListener_returnsTrue() -> None:
+    """A message listener that only appends message data to an in-memory array is benign."""
+    vulnerability = _postmessage_origin_vulnerability(TELEMETRY_LOG_LISTENER_LINES)
+
+    assert (
+        utils.is_telemetry_listener_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is True
+    )
+
+
+def testParseResults_whenInMemoryLogListener_emitsNoVulnerability() -> None:
+    """The in-memory log listener FP is suppressed end to end."""
+    json_output = {
+        "path": "/code/dtb-m.js",
+        "results": [_postmessage_origin_vulnerability(TELEMETRY_LOG_LISTENER_LINES)],
+    }
+
+    assert list(utils.parse_results(json_output)) == []
+
+
+def testIsTelemetryListener_whenDataReachesSink_returnsFalse() -> None:
+    """A handler writing message data into the DOM is still reported."""
+    lines = """window.addEventListener("message", function(e) {
+    e.data && e.data.hasOwnProperty("apsOmsdkLog") && document.getElementById("log").innerHTML = e.data.apsOmsdkLog;
+});"""
+    vulnerability = _postmessage_origin_vulnerability(lines)
+
+    assert (
+        utils.is_telemetry_listener_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
+
+
+def testParseResults_whenTelemetryHandlerAlsoReachesSink_stillEmitsVulnerability() -> (
+    None
+):
+    """A genuine postmessage XSS handler is still reported."""
+    lines = """window.addEventListener("message", function(e) {
+    e.data && e.data.hasOwnProperty("apsOmsdkLog") && document.getElementById("log").innerHTML = e.data.apsOmsdkLog;
+});"""
+    json_output = {
+        "path": "/code/app.js",
+        "results": [_postmessage_origin_vulnerability(lines)],
+    }
+
+    result = list(utils.parse_results(json_output))
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Insufficient Postmessage Origin Validation"
+
+
+def testIsTelemetryListener_whenOtherRule_returnsFalse() -> None:
+    """The filter never suppresses a different check id."""
+    vulnerability = _postmessage_origin_vulnerability(
+        TELEMETRY_LOG_LISTENER_LINES,
+        check_id="javascript.browser.security.eval-detected.eval-detected",
+    )
+
+    assert (
+        utils.is_telemetry_listener_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
+
+
+def testIsTelemetryListener_whenLinesMissing_returnsFalse() -> None:
+    """A finding without matched lines is never suppressed."""
+    vulnerability = {"check_id": _POSTMESSAGE_ORIGIN_VALIDATION_CHECK_ID}
+
+    assert (
+        utils.is_telemetry_listener_insufficient_postmessage_origin_validation(
+            vulnerability
+        )
+        is False
+    )
+
+
+@pytest.mark.parametrize(
+    "sink",
+    [
+        'document.getElementById("log").innerHTML = e.data.apsOmsdkLog;',
+        'element["innerHTML"] = e.data.apsOmsdkLog;',
+        'element["outerHTML"] = e.data.apsOmsdkLog;',
+        'element["srcdoc"] = e.data.html;',
+        'element["src"] = e.data.url;',
+        'element["href"] = e.data.url;',
+        "link.href = e.data.url;",
+        "element.innerHTML += e.data.apsOmsdkLog;",
+        'element["innerHTML"] += e.data.apsOmsdkLog;',
+        'element["srcdoc"] ||= e.data.html;',
+        "link.href ??= e.data.url;",
+        "window.location += e.data.url;",
+        "eval(e.data.apsOmsdkLog);",
+        "document.write(e.data.apsOmsdkLog);",
+        "window.location.href = e.data.url;",
+        "window.location = e.data.url;",
+        "document.location = e.data.url;",
+        "location.assign(e.data.url);",
+        "location.replace(e.data.url);",
+        'element.insertAdjacentHTML("beforeend", e.data.apsOmsdkLog);',
+        "frame.src = e.data.url;",
+        "setTimeout(e.data.apsOmsdkLog, 0);",
+        "Function(e.data.apsOmsdkLog)();",
+        "new Function(e.data.apsOmsdkLog)();",
+        'element.setAttribute("src", e.data.url);',
+        "window.open(e.data.url);",
+    ],
+)
+def testParseResults_whenTelemetryHandlerAlsoReachesSink_keepsFinding(
+    sink: str,
+) -> None:
+    lines = (
+        'window.addEventListener("message", function(e) {\n'
+        '    e.data && e.data.hasOwnProperty("apsOmsdkLog") && '
+        "window.apsOmsdkLogs.push(e.data.apsOmsdkLog);\n"
+        f"    {sink}\n"
+        "});"
+    )
+    result = list(
+        utils.parse_results(
+            {
+                "path": "/code/app.js",
+                "results": [_postmessage_origin_vulnerability(lines)],
+            }
+        )
+    )
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Insufficient Postmessage Origin Validation"
+
+
 def testIsScopedMessageHandler_whenScopedSdkMuteHandler_returnsTrue() -> None:
     """A message handler scoped to a fixed command that only toggles a mute flag is benign."""
     vulnerability = _postmessage_origin_vulnerability(SCOPED_SDK_MUTE_HANDLER_LINES)

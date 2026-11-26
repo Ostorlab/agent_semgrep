@@ -46,6 +46,30 @@ _SCOPED_SDK_MUTE_HANDLER_PATTERN = re.compile(
     r"event\s*\.\s*stopImmediatePropagation\s*\(\s*\)\s*;?\s*"
     r"\}\s*\}\s*\)\s*;?\s*"
 )
+# Amazon DTBiOSSDK telemetry logger: appends a message's own field into an in-memory
+# array, with no DOM / navigation / eval sink. The origin check is irrelevant here.
+_MESSAGE_TELEMETRY_LISTENER_PATTERN = re.compile(
+    r"""addEventListener\s*\(\s*["']message["']\s*,\s*function\s*\(\s*e\s*\)\s*\{""",
+    re.DOTALL,
+)
+_MESSAGE_TELEMETRY_PUSH_PATTERN = re.compile(
+    r"e\s*\.\s*data\s*&&\s*e\s*\.\s*data\s*\.\s*hasOwnProperty\s*\(\s*[\"'][\w$]+[\"']\s*\)"
+    r"\s*&&\s*window\s*\.\s*[\w$]+\s*\.\s*push\s*\(",
+    re.DOTALL,
+)
+# Any handler that flows message data into one of these sinks is NOT the benign
+# telemetry shape and must stay reported.
+_MESSAGE_TELEMETRY_SINK_PATTERN = re.compile(
+    r"(?:\.\s*(?:innerHTML|outerHTML|srcdoc|src|href)"
+    r"|\[\s*[\"'](?:innerHTML|outerHTML|srcdoc|src|href)[\"']\s*\]"
+    r"|(?:window|document)\s*\.\s*location)"
+    r"\s*(?:[+\-/%^]|\*\*?|&&?|\|\|?|<<|>>>?|\?\?)?="
+    r"|insertAdjacentHTML\(|document\s*\.\s*write\(|eval\("
+    r"|location\s*\.\s*assign\(|location\s*\.\s*replace\("
+    r"|window\s*\.\s*open\(|setTimeout\("
+    r"|\bnew\s*Function\(|\bFunction\(|\.\s*setAttribute\s*\(|\.\s*html\(",
+    re.DOTALL,
+)
 
 _LOGGER_CREDENTIAL_DISCLOSURE_RULE = "python-logger-credential-disclosure"
 # Credential keywords the upstream rule looks for inside the logged format string
@@ -325,6 +349,33 @@ def is_scoped_message_handler_insufficient_postmessage_origin_validation(
     return _SCOPED_SDK_MUTE_HANDLER_PATTERN.fullmatch(lines.strip()) is not None
 
 
+def is_telemetry_listener_insufficient_postmessage_origin_validation(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Suppress a message listener that only appends message data to an in-memory array.
+
+    The Amazon DTBiOSSDK telemetry handler reads a message's own ``apsOmsdkLog`` field
+    (guarded by ``e.data.hasOwnProperty(...)``) and pushes it into the in-memory
+    ``window.apsOmsdkLogs`` array. No DOM, navigation or eval sink is reached, so the
+    missing origin check is not exploitable. A handler that also writes message data into
+    a dangerous sink is still reported.
+    """
+    if (
+        str(vulnerability.get("check_id", "")).split(".")[-1]
+        != _INSUFFICIENT_POSTMESSAGE_ORIGIN_VALIDATION_RULE
+    ):
+        return False
+    lines = vulnerability.get("extra", {}).get("lines")
+    if lines is None:
+        return False
+    lines = str(lines)
+    if _MESSAGE_TELEMETRY_LISTENER_PATTERN.search(lines) is None:
+        return False
+    if _MESSAGE_TELEMETRY_PUSH_PATTERN.search(lines) is None:
+        return False
+    return _MESSAGE_TELEMETRY_SINK_PATTERN.search(lines) is None
+
+
 def _logger_credential_format_string(vulnerability: dict[str, Any]) -> str:
     """Extract the format string logged by a python-logger-credential-disclosure finding.
 
@@ -406,6 +457,10 @@ def parse_results(
 
     for vulnerability in vulnerabilities:
         if is_scoped_message_handler_insufficient_postmessage_origin_validation(
+            vulnerability
+        ):
+            continue
+        if is_telemetry_listener_insufficient_postmessage_origin_validation(
             vulnerability
         ):
             continue
