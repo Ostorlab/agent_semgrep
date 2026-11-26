@@ -60,13 +60,14 @@ _MESSAGE_TELEMETRY_PUSH_PATTERN = re.compile(
 # Any handler that flows message data into one of these sinks is NOT the benign
 # telemetry shape and must stay reported.
 _MESSAGE_TELEMETRY_SINK_PATTERN = re.compile(
-    r"\.\s*innerHTML\s*=|\[\s*[\"']innerHTML[\"']\s*\]\s*=|\.\s*outerHTML\s*="
-    r"|\[\s*[\"']outerHTML[\"']\s*\]\s*=|insertAdjacentHTML\(|document\s*\.\s*write\(|"
-    r"eval\(|window\s*\.\s*location\s*=|document\s*\.\s*location\s*=|\.\s*href\s*="
-    r"|location\s*\.\s*assign\(|location\s*\.\s*replace\(|\.\s*srcdoc\s*="
-    r"|\[\s*[\"']srcdoc[\"']\s*\]\s*=|\.\s*src\s*=|\[\s*[\"']src[\"']\s*\]\s*="
-    r"|\[\s*[\"']href[\"']\s*\]\s*=|window\s*\.\s*open\(|setTimeout\(|"
-    r"\bnew\s*Function\(|\bFunction\(|\.\s*setAttribute\s*\(|\.\s*html\(",
+    r"(?:\.\s*(?:innerHTML|outerHTML|srcdoc|src|href)"
+    r"|\[\s*[\"'](?:innerHTML|outerHTML|srcdoc|src|href)[\"']\s*\]"
+    r"|(?:window|document)\s*\.\s*location)"
+    r"\s*(?:[+\-/%^]|\*\*?|&&?|\|\|?|<<|>>>?|\?\?)?="
+    r"|insertAdjacentHTML\(|document\s*\.\s*write\(|eval\("
+    r"|location\s*\.\s*assign\(|location\s*\.\s*replace\("
+    r"|window\s*\.\s*open\(|setTimeout\("
+    r"|\bnew\s*Function\(|\bFunction\(|\.\s*setAttribute\s*\(|\.\s*html\(",
     re.DOTALL,
 )
 
