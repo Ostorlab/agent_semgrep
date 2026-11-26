@@ -738,6 +738,7 @@ def testIsTelemetryListener_whenLinesMissing_returnsFalse() -> None:
         'element["srcdoc"] = e.data.html;',
         'element["src"] = e.data.url;',
         'element["href"] = e.data.url;',
+        "link.href = e.data.url;",
         "eval(e.data.apsOmsdkLog);",
         "document.write(e.data.apsOmsdkLog);",
         "window.location.href = e.data.url;",
