@@ -1,5 +1,7 @@
 """Utilities for Semgrep Agent"""
 
+import base64
+import binascii
 import dataclasses
 import json
 import logging
@@ -77,6 +79,22 @@ _LOGGER_CREDENTIAL_DISCLOSURE_RULE = "python-logger-credential-disclosure"
 _LOGGER_CREDENTIAL_KEYWORDS = ("api.key", "secret", "credential", "token", "password")
 _LOGGER_CREDENTIAL_FORMAT_STRING_PATTERN = re.compile(
     r"""(['"])([^'"]*%[sd][^'"]*)\1"""
+)
+
+_DETECTED_JWT_TOKEN_RULE = "detected-jwt-token"
+# A compact JWT of three segments. The header and payload are base64url; the signature
+# segment may additionally carry standard-base64 characters (`/` and `+`), so its char
+# class is broader than the payload's.
+_JWT_TOKEN_PATTERN = re.compile(
+    r"eyJ[A-Za-z0-9_=-]+\.[A-Za-z0-9_=-]+\.[A-Za-z0-9-_.+/=]*"
+)
+# Amazon Login-with-Amazon public app API key payload markers. These keys are public app
+# identifiers embedded in every app install, not secret credentials, so a JWT whose
+# decoded payload carries all three markers is not a credential leak.
+_AMAZON_LWA_API_KEY_TYPE_PATTERN = re.compile(r'"type"\s*:\s*"APIKey"')
+_AMAZON_LWA_API_KEY_ISSUER_PATTERN = re.compile(r'"iss"\s*:\s*"Amazon"')
+_AMAZON_LWA_APPLICATION_ID_PATTERN = re.compile(
+    r'"(?:clientId|appId|appFamilyId)"\s*:\s*"amzn1\.application'
 )
 
 RISK_RATING_MAPPING = {
@@ -426,6 +444,56 @@ def is_embedded_keyword_logger_credential_disclosure(
     )
 
 
+def _decode_jwt_payload(jwt: str) -> str:
+    """Decode the payload segment of a compact JWT to its UTF-8 text.
+
+    JWT payloads use base64url and may omit padding. Returns an empty string when the
+    payload segment is not valid base64url.
+    """
+    segments = jwt.split(".")
+    if len(segments) < 2:
+        return ""
+    payload = segments[1]
+    padding = "=" * (-len(payload) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode(payload + padding)
+    except (ValueError, binascii.Error):
+        return ""
+    return decoded.decode("utf-8", errors="replace")
+
+
+def is_amazon_lwa_public_api_key_detected_jwt_token(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Suppress an Amazon Login-with-Amazon public app API key reported as a JWT.
+
+    The `detected-jwt-token` rule matches any string shaped like a JWT. A Login-with-
+    Amazon app API key is a public app identifier (its payload carries ``"type":"APIKey"``,
+    ``"iss":"Amazon"`` and an ``amzn1.application-*`` client/app id) embedded in every app
+    install, not a secret credential. Only such keys are suppressed; any other JWT - access,
+    id or refresh tokens and similar - stays reported.
+    """
+    if (
+        str(vulnerability.get("check_id", "")).split(".")[-1]
+        != _DETECTED_JWT_TOKEN_RULE
+    ):
+        return False
+    lines = vulnerability.get("extra", {}).get("lines")
+    if lines is None:
+        return False
+    for jwt in _JWT_TOKEN_PATTERN.findall(str(lines)):
+        payload = _decode_jwt_payload(jwt)
+        if payload == "":
+            continue
+        if (
+            _AMAZON_LWA_API_KEY_TYPE_PATTERN.search(payload) is not None
+            and _AMAZON_LWA_API_KEY_ISSUER_PATTERN.search(payload) is not None
+            and _AMAZON_LWA_APPLICATION_ID_PATTERN.search(payload) is not None
+        ):
+            return True
+    return False
+
+
 def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
@@ -465,6 +533,8 @@ def parse_results(
         ):
             continue
         if is_embedded_keyword_logger_credential_disclosure(vulnerability):
+            continue
+        if is_amazon_lwa_public_api_key_detected_jwt_token(vulnerability):
             continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))

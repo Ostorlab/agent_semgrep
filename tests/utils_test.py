@@ -917,3 +917,167 @@ def testParseResults_whenMuteHandlerAlsoContainsSink_keepsFinding(sink: str) -> 
 
     assert len(result) == 1
     assert result[0].entry.title == "Insufficient Postmessage Origin Validation"
+
+
+_DETECTED_JWT_TOKEN_CHECK_ID = "generic.secrets.security.detected-jwt-token"
+
+
+def _jwt_token_vulnerability(
+    lines: str,
+    *,
+    check_id: str = _DETECTED_JWT_TOKEN_CHECK_ID,
+) -> dict[str, Any]:
+    """Build a semgrep finding for the detected-jwt-token rule."""
+    return {
+        "check_id": check_id,
+        "start": {"line": 1, "col": 1},
+        "extra": {
+            "message": "JWT token detected",
+            "lines": lines,
+            "metadata": {
+                "technology": ["secrets"],
+                "impact": "MEDIUM",
+                "references": [],
+            },
+            "fix": "",
+        },
+        "path": "/code/assets/api_key.txt",
+    }
+
+
+def _build_jwt(payload: dict[str, Any]) -> str:
+    """Build a compact three-segment JWT from a payload dict for control tests."""
+    import base64 as _b64
+    import json as _json
+
+    def _enc(value: str) -> str:
+        return _b64.urlsafe_b64encode(value.encode()).decode().rstrip("=")
+
+    header = _json.dumps({"alg": "RS256", "typ": "JWT"}, separators=(",", ":"))
+    body = _json.dumps(payload, separators=(",", ":"))
+    return f"{_enc(header)}.{_enc(body)}.{_enc('signature')}"
+
+
+# The exact Amazon Login-with-Amazon app API key reported on os-43142
+# (com.tuya.smart/assets/api_key.txt, scan 226332).
+AMAZON_LWA_API_KEY_JWT = (
+    "eyJhbGciOiJSU0EtU0hBMjU2IiwidmVyIjoiMSJ9.eyJ2ZXIiOiIzIiwiZW5kcG9pbnRzIjp7Im"
+    "F1dGh6IjoiaHR0cHM6Ly93d3cuYW1hem9uLmNvbS9hcC9vYSIsInRva2VuRXhjaGFuZ2UiOiJodHR"
+    "wczovL2FwaS5hbWF6b24uY29tL2F1dGgvbzIvdG9rZW4ifSwiY2xpZW50SWQiOiJhbXpuMS5hcHBsa"
+    "WNhdGlvbi1vYTItY2xpZW50LmY4NDM0YjJmMDk1NzRhNmQ4YjQ2NDY2OWFmNDBiMmRmIiwiYXBwRmF"
+    "taWx5SWQiOiJhbXpuMS5hcHBsaWNhdGlvbi45OGYzOTc0MTc1MDE0Yzk5OWQ5MDcwNjFmOTEzYjAzO"
+    "CIsImlzcyI6IkFtYXpvbiIsInR5cGUiOiJBUElLZXkiLCJwa2ciOiJjb20udHV5YS5zbWFydCIsImF"
+    "wcFZhcmlhbnRJZCI6ImFtem4xLmFwcGxpY2F0aW9uLWNsaWVudC41OWUwZGM5ZWZjNWY0ZjNkOGNhM"
+    "TE4OTJjZTZkODE3NiIsInRydXN0UG9vbCI6bnVsbCwiYXBwc2lnU2hhMjU2IjoiOTM6MjE6OUY6QzI"
+    "6NzM6RTI6MjA6MEY6NEE6REU6RTU6Rjc6MTk6MUQ6QzY6NTY6QkE6MkE6MkQ6N0I6MkY6RjU6RDI6N"
+    "EM6RDU6NUM6NEI6NjE6NTU6MDA6MUU6NDAiLCJhcHBzaWciOiJCRjo3MDoxQzpCRjozQTpBODo0ND"
+    "oyNTpDQjoyNTpGOTo4QTo5RjoyMTpGNTowNSIsImFwcElkIjoiYW16bjEuYXBwbGljYXRpb24tY2xp"
+    "ZW50LjU5ZTBkYzllZmM1ZjRmM2Q4Y2ExMTg5MmNlNmQ4MTc2IiwiaWQiOiJkNTlkNWY4ZC00YWI1LTQ"
+    "wYmUtOTM0MS04NzMwZjcwMGQ4YWIiLCJpYXQiOiIxNTgxNjQ2MTE1MDg2In0=.H6e9kowJE/BXaUaZ"
+    "UFjK02p8f5elXNYU21twfHYPK+JDJTVwnW4QWFDf+mBLj6gVOksH+w+TAPNUUy+eX8A8JjYHQYG2BPTS"
+    "RGEAa+hXpEboMJWL/g6zt6NI8tzYfSOMGF9eZMSOh6z3g7bNj8xXurOlwgKjZR+1OTPgqqdMJcbY9Mw"
+    "6AonYRbc/+e0FbfzSkKuqp5EUoBeL3FMg8jA9EkQll4E+Nu3rk0HHxG6XoEvOyczUTxyXvrGrEwPWfDp"
+    "ReRKBYIalbkjRwjDO7FzRdZsJNmcG9eg+OacMMGlA1JPaorbVKVwzsjo4gvPrUYqi1glNNJ7MvZKBnP"
+    "8oa0iNZg=="
+)
+
+AMAZON_LWA_API_KEY_PAYLOAD = {
+    "ver": "3",
+    "iss": "Amazon",
+    "type": "APIKey",
+    "clientId": "amzn1.application-oa2-client.f8434b2f09574a6d8b464669af40b2df",
+    "pkg": "com.tuya.smart",
+}
+GOOGLE_ID_TOKEN_PAYLOAD = {
+    "iss": "accounts.google.com",
+    "sub": "1234567890",
+    "aud": "app",
+    "iat": 1700000000,
+    "exp": 1700003600,
+}
+
+
+def testIsAmazonLwaPublicApiKey_whenExactApiKey_returnsTrue() -> None:
+    """The exact Amazon app API key reported on os-43142 is identified."""
+    vulnerability = _jwt_token_vulnerability(AMAZON_LWA_API_KEY_JWT)
+
+    assert utils.is_amazon_lwa_public_api_key_detected_jwt_token(vulnerability) is True
+
+
+def testIsAmazonLwaPublicApiKey_whenDecodedApiKey_returnsTrue() -> None:
+    """A synthetic Login-with-Amazon API key payload is identified too."""
+    vulnerability = _jwt_token_vulnerability(_build_jwt(AMAZON_LWA_API_KEY_PAYLOAD))
+
+    assert utils.is_amazon_lwa_public_api_key_detected_jwt_token(vulnerability) is True
+
+
+def testParseResults_whenAmazonLwaPublicApiKey_emitsNoVulnerability() -> None:
+    """The Amazon app API key FP is suppressed end to end."""
+    json_output = {
+        "path": "/code/assets/api_key.txt",
+        "results": [_jwt_token_vulnerability(AMAZON_LWA_API_KEY_JWT)],
+    }
+
+    assert list(utils.parse_results(json_output)) == []
+
+
+def testParseResults_whenGenuineJwt_keepsFinding() -> None:
+    """A genuine Google id token is still reported."""
+    json_output = {
+        "path": "/code/token.txt",
+        "results": [_jwt_token_vulnerability(_build_jwt(GOOGLE_ID_TOKEN_PAYLOAD))],
+    }
+
+    result = list(utils.parse_results(json_output))
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Detected Jwt Token"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"iss": "accounts.google.com", "sub": "1", "aud": "app"},  # non-Amazon issuer
+        {"iss": "my-idp", "type": "Bearer", "client_id": "abc"},  # Bearer, not APIKey
+        {
+            "iss": "Amazon",
+            "type": "APIKey",
+            "clientId": "some-other-format",
+        },  # no amzn id
+        {
+            "iss": "Amazon",
+            "type": "AccessToken",
+            "clientId": "amzn1.application-client.x",
+        },  # not APIKey
+        {
+            "iss": "Amazon",
+            "type": "UserPool",
+            "clientId": "amzn1.application-oa2-client.x",
+        },  # not APIKey
+        {"type": "APIKey", "clientId": "amzn1.application-oa2-client.x"},  # missing iss
+    ],
+)
+def testIsAmazonLwaPublicApiKey_whenPartialMarkers_returnsFalse(
+    payload: dict[str, Any],
+) -> None:
+    """A JWT missing any of the three Amazon API-key markers is not suppressed."""
+    vulnerability = _jwt_token_vulnerability(_build_jwt(payload))
+
+    assert utils.is_amazon_lwa_public_api_key_detected_jwt_token(vulnerability) is False
+
+
+def testIsAmazonLwaPublicApiKey_whenOtherRule_returnsFalse() -> None:
+    """The filter never suppresses a different check id."""
+    vulnerability = _jwt_token_vulnerability(
+        _build_jwt(AMAZON_LWA_API_KEY_PAYLOAD),
+        check_id="generic.secrets.security.some-other-rule",
+    )
+
+    assert utils.is_amazon_lwa_public_api_key_detected_jwt_token(vulnerability) is False
+
+
+def testIsAmazonLwaPublicApiKey_whenLinesMissing_returnsFalse() -> None:
+    """A finding without matched lines is never suppressed."""
+    vulnerability = {"check_id": _DETECTED_JWT_TOKEN_CHECK_ID}
+
+    assert utils.is_amazon_lwa_public_api_key_detected_jwt_token(vulnerability) is False
