@@ -919,6 +919,194 @@ def testParseResults_whenMuteHandlerAlsoContainsSink_keepsFinding(sink: str) -> 
     assert result[0].entry.title == "Insufficient Postmessage Origin Validation"
 
 
+_WILDCARD_POSTMESSAGE_CHECK_ID = (
+    "javascript.browser.security.wildcard-postmessage-configuration."
+    "wildcard-postmessage-configuration"
+)
+
+
+def _wildcard_postmessage_vulnerability(
+    lines: str,
+    *,
+    check_id: str = _WILDCARD_POSTMESSAGE_CHECK_ID,
+) -> dict[str, Any]:
+    """Build a semgrep finding for the wildcard-postmessage-configuration rule."""
+    return {
+        "check_id": check_id,
+        "start": {"line": 1, "col": 1},
+        "end": {"line": 1, "col": len(lines.encode("utf-8")) + 1},
+        "extra": {
+            "message": (
+                'The target origin of the window.postMessage() API is set to "*".'
+            ),
+            "lines": lines,
+            "metadata": {
+                "technology": ["browser"],
+                "impact": "MEDIUM",
+                "references": [],
+            },
+            "fix": "",
+        },
+        "path": "/code/clevertap.js",
+    }
+
+
+def testIsConstantPayloadWildcardPostmessage_whenLiteralPayload_returnsTrue() -> None:
+    """A postMessage with a constant string-literal payload is benign."""
+    vulnerability = _wildcard_postmessage_vulnerability('i.postMessage("ready", "*");')
+
+    assert utils.is_constant_payload_wildcard_postmessage(vulnerability) is True
+
+
+def testIsConstantPayloadWildcardPostmessage_whenSingleQuotedLiteral_returnsTrue() -> (
+    None
+):
+    """Single-quoted literal payloads are also suppressed."""
+    vulnerability = _wildcard_postmessage_vulnerability(
+        "parent.postMessage('ready', '*');"
+    )
+
+    assert utils.is_constant_payload_wildcard_postmessage(vulnerability) is True
+
+
+def testParseResults_whenLiteralWildcardPostMessage_emitsNoVulnerability() -> None:
+    """The literal 'ready' handshake FP is suppressed end to end."""
+    json_output = {
+        "path": "/code/clevertap.js",
+        "results": [
+            _wildcard_postmessage_vulnerability('i.postMessage("ready", "*");')
+        ],
+    }
+
+    assert list(utils.parse_results(json_output)) == []
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        'target.postMessage(data, "*");',
+        'window.parent.postMessage(JSON.stringify(payload), "*");',
+        'iframe.contentWindow.postMessage({type: "close"}, "*");',
+        'target.postMessage(userInput, "*");',
+        'receiver.postMessage(`template ${value}`, "*");',
+    ],
+)
+def testIsConstantPayloadWildcardPostmessage_whenDynamicPayload_returnsFalse(
+    lines: str,
+) -> None:
+    """A dynamic payload is a genuine disclosure candidate and stays reported."""
+    vulnerability = _wildcard_postmessage_vulnerability(lines)
+
+    assert utils.is_constant_payload_wildcard_postmessage(vulnerability) is False
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        'target.postMessage(data, "*");',
+        'window.parent.postMessage(JSON.stringify(payload), "*");',
+        'iframe.contentWindow.postMessage({type: "close"}, "*");',
+    ],
+)
+def testParseResults_whenDynamicWildcardPostMessage_keepsFinding(lines: str) -> None:
+    """A genuine dynamic wildcard postMessage is still reported."""
+    result = list(
+        utils.parse_results(
+            {
+                "path": "/code/app.js",
+                "results": [_wildcard_postmessage_vulnerability(lines)],
+            }
+        )
+    )
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Wildcard Postmessage Configuration"
+
+
+def testIsConstantPayloadWildcardPostmessage_whenOtherRule_returnsFalse() -> None:
+    """The filter never suppresses a different check id."""
+    vulnerability = _wildcard_postmessage_vulnerability(
+        'i.postMessage("ready", "*");',
+        check_id="javascript.browser.security.eval-detected.eval-detected",
+    )
+
+    assert utils.is_constant_payload_wildcard_postmessage(vulnerability) is False
+
+
+def testIsConstantPayloadWildcardPostmessage_whenLinesMissing_returnsFalse() -> None:
+    """A finding without matched lines is never suppressed."""
+    vulnerability = {"check_id": _WILDCARD_POSTMESSAGE_CHECK_ID}
+
+    assert utils.is_constant_payload_wildcard_postmessage(vulnerability) is False
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        'i.postMessage("ready", "*");target.postMessage(authToken, "*");',
+        '// i.postMessage("ready", "*")\ntarget.postMessage(authToken, "*");',
+    ],
+)
+def testParseResults_whenBenignCallOutsideDynamicMatch_keepsFinding(lines: str) -> None:
+    """A benign call elsewhere in the excerpt cannot mute the matched sink."""
+    vulnerability = _wildcard_postmessage_vulnerability(lines)
+    matched = 'target.postMessage(authToken, "*")'
+    last_line = lines.splitlines()[-1]
+    column = last_line.index(matched) + 1
+    vulnerability["start"] = {"line": len(lines.splitlines()), "col": column}
+    vulnerability["end"] = {
+        "line": len(lines.splitlines()),
+        "col": column + len(matched),
+    }
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenLiteralMatchHasNoEnd_keepsFinding() -> None:
+    """Missing match bounds cannot establish that the literal belongs to the finding."""
+    vulnerability = _wildcard_postmessage_vulnerability('i.postMessage("ready", "*");')
+    vulnerability.pop("end", None)
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenLiteralMessageTransfersPort_keepsFinding() -> None:
+    """A literal message can still transfer a channel capability to another origin."""
+    vulnerability = _wildcard_postmessage_vulnerability(
+        'target.postMessage("ready", "*", [channel.port2]);'
+    )
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenLiteralMatchFollowsUnicodePrefix_suppressesFinding() -> None:
+    """Semgrep columns count UTF-8 bytes rather than Python characters."""
+    prefix = 'const label="é";'
+    matched = 'i.postMessage("ready", "*")'
+    vulnerability = _wildcard_postmessage_vulnerability(prefix + matched + ";")
+    column = len(prefix.encode("utf-8")) + 1
+    vulnerability["start"] = {"line": 1, "col": column}
+    vulnerability["end"] = {"line": 1, "col": column + len(matched)}
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 0
+
+
 UNSAFE_FORMAT_STRING_CHECK_ID = (
     "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring"
 )
