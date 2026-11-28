@@ -933,7 +933,8 @@ def _wildcard_postmessage_vulnerability(
     """Build a semgrep finding for the wildcard-postmessage-configuration rule."""
     return {
         "check_id": check_id,
-        "start": {"line": 7062, "col": 29},
+        "start": {"line": 1, "col": 1},
+        "end": {"line": 1, "col": len(lines.encode("utf-8")) + 1},
         "extra": {
             "message": (
                 'The target origin of the window.postMessage() API is set to "*".'
@@ -1037,3 +1038,70 @@ def testIsConstantPayloadWildcardPostmessage_whenLinesMissing_returnsFalse() -> 
     vulnerability = {"check_id": _WILDCARD_POSTMESSAGE_CHECK_ID}
 
     assert utils.is_constant_payload_wildcard_postmessage(vulnerability) is False
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        'i.postMessage("ready", "*");target.postMessage(authToken, "*");',
+        '// i.postMessage("ready", "*")\ntarget.postMessage(authToken, "*");',
+    ],
+)
+def testParseResults_whenBenignCallOutsideDynamicMatch_keepsFinding(lines: str) -> None:
+    """A benign call elsewhere in the excerpt cannot mute the matched sink."""
+    vulnerability = _wildcard_postmessage_vulnerability(lines)
+    matched = 'target.postMessage(authToken, "*")'
+    last_line = lines.splitlines()[-1]
+    column = last_line.index(matched) + 1
+    vulnerability["start"] = {"line": len(lines.splitlines()), "col": column}
+    vulnerability["end"] = {
+        "line": len(lines.splitlines()),
+        "col": column + len(matched),
+    }
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenLiteralMatchHasNoEnd_keepsFinding() -> None:
+    """Missing match bounds cannot establish that the literal belongs to the finding."""
+    vulnerability = _wildcard_postmessage_vulnerability('i.postMessage("ready", "*");')
+    vulnerability.pop("end", None)
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenLiteralMessageTransfersPort_keepsFinding() -> None:
+    """A literal message can still transfer a channel capability to another origin."""
+    vulnerability = _wildcard_postmessage_vulnerability(
+        'target.postMessage("ready", "*", [channel.port2]);'
+    )
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenLiteralMatchFollowsUnicodePrefix_suppressesFinding() -> None:
+    """Semgrep columns count UTF-8 bytes rather than Python characters."""
+    prefix = 'const label="é";'
+    matched = 'i.postMessage("ready", "*")'
+    vulnerability = _wildcard_postmessage_vulnerability(prefix + matched + ";")
+    column = len(prefix.encode("utf-8")) + 1
+    vulnerability["start"] = {"line": 1, "col": column}
+    vulnerability["end"] = {"line": 1, "col": column + len(matched)}
+
+    result = list(
+        utils.parse_results({"path": "/code/app.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 0
