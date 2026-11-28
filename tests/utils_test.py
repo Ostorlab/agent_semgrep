@@ -1105,3 +1105,157 @@ def testParseResults_whenLiteralMatchFollowsUnicodePrefix_suppressesFinding() ->
     )
 
     assert len(result) == 0
+
+
+UNSAFE_FORMAT_STRING_CHECK_ID = (
+    "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring"
+)
+
+# Exact sink line from the cordova-background-geolocation-lt plugin FP.
+CONSOLE_LOG_FORMAT_STRING_LINES = (
+    "console.log('- ' + method + '(' + params + ') - ' + type + ': ', result);"
+)
+
+
+def _unsafe_format_string_vulnerability(
+    lines: str,
+    *,
+    check_id: str = UNSAFE_FORMAT_STRING_CHECK_ID,
+) -> dict[str, Any]:
+    """Build a semgrep finding for the unsafe-formatstring rule."""
+    return {
+        "check_id": check_id,
+        "start": {"line": 1, "col": 1},
+        "end": {"line": 1, "col": len(lines.encode("utf-8")) + 1},
+        "extra": {
+            "message": "Detected string concatenation with a non-literal variable in a "
+            "util.format / console.log function. If an attacker injects a format "
+            "specifier in the string, it will forge the log message.",
+            "lines": lines,
+            "metadata": {
+                "technology": ["javascript"],
+                "impact": "LOW",
+                "references": [],
+            },
+            "fix": "",
+        },
+        "path": "/code/assets/www/plugins/cordova-background-geolocation-lt/"
+        "www/BackgroundGeolocation.js",
+    }
+
+
+def testIsBrowserConsoleLog_whenConsoleLogSink_returnsTrue() -> None:
+    """A browser console.log string-concatenation sink is the benign shape."""
+    vulnerability = _unsafe_format_string_vulnerability(CONSOLE_LOG_FORMAT_STRING_LINES)
+
+    assert utils.is_browser_console_log_unsafe_format_string(vulnerability) is True
+
+
+def testIsBrowserConsoleLog_whenConsoleWarnSink_returnsTrue() -> None:
+    """Any console.$LOG sink (not only console.log) is the benign shape."""
+    vulnerability = _unsafe_format_string_vulnerability(
+        "console.warn('- ' + method + ':', result);"
+    )
+
+    assert utils.is_browser_console_log_unsafe_format_string(vulnerability) is True
+
+
+def testParseResults_whenConsoleLogSink_suppressesFinding() -> None:
+    """The browser console.log format-string FP is suppressed end to end."""
+    json_output = {
+        "path": "/code/BackgroundGeolocation.js",
+        "results": [
+            _unsafe_format_string_vulnerability(CONSOLE_LOG_FORMAT_STRING_LINES)
+        ],
+    }
+
+    assert list(utils.parse_results(json_output, package_name="com.example.app")) == []
+
+
+def testIsBrowserConsoleLog_whenUtilFormatSink_returnsFalse() -> None:
+    """The server-side util.format sink is the genuinely relevant case."""
+    vulnerability = _unsafe_format_string_vulnerability("return util.format(logs, ip);")
+
+    assert utils.is_browser_console_log_unsafe_format_string(vulnerability) is False
+
+
+def testParseResults_whenUtilFormatSink_keepsFinding() -> None:
+    """A util.format finding is still reported."""
+    json_output = {
+        "path": "/code/server.js",
+        "results": [
+            _unsafe_format_string_vulnerability("return util.format(logs, ip);")
+        ],
+    }
+
+    result = list(utils.parse_results(json_output))
+
+    assert len(result) == 1
+    assert result[0].entry.title == "Unsafe Formatstring"
+
+
+def testIsBrowserConsoleLog_whenOtherRule_returnsFalse() -> None:
+    """The filter never suppresses a different check id."""
+    vulnerability = _unsafe_format_string_vulnerability(
+        CONSOLE_LOG_FORMAT_STRING_LINES,
+        check_id="javascript.browser.security.eval-detected.eval-detected",
+    )
+
+    assert utils.is_browser_console_log_unsafe_format_string(vulnerability) is False
+
+
+def testIsBrowserConsoleLog_whenLinesMissing_returnsFalse() -> None:
+    """A finding without matched lines is never suppressed."""
+    vulnerability = {"check_id": UNSAFE_FORMAT_STRING_CHECK_ID}
+
+    assert utils.is_browser_console_log_unsafe_format_string(vulnerability) is False
+
+
+@pytest.mark.parametrize(
+    "prefix", ["console.log('benign');", "/* console.log('benign') */"]
+)
+def testParseResults_whenConsoleCallOutsideUtilFormatMatch_keepsFinding(
+    prefix: str,
+) -> None:
+    """An unrelated console call on a minified line cannot mute util.format."""
+    matched = "util.format(logs, ip)"
+    lines = prefix + matched + ";"
+    vulnerability = _unsafe_format_string_vulnerability(lines)
+    column = len(prefix) + 1
+    vulnerability["start"] = {"line": 1, "col": column}
+    vulnerability["end"] = {"line": 1, "col": column + len(matched)}
+
+    result = list(
+        utils.parse_results(
+            {"path": "/code/server.js", "results": [vulnerability]},
+            package_name="com.example.app",
+        )
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenConsoleMatchHasNoEnd_keepsFinding() -> None:
+    """Missing match bounds cannot prove that the console call is the reported sink."""
+    vulnerability = _unsafe_format_string_vulnerability(CONSOLE_LOG_FORMAT_STRING_LINES)
+    vulnerability.pop("end", None)
+
+    result = list(
+        utils.parse_results(
+            {"path": "/code/app.js", "results": [vulnerability]},
+            package_name="com.example.app",
+        )
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenConsoleSinkHasNoMobileContext_keepsFinding() -> None:
+    """A repository console sink can affect server logs and remains reportable."""
+    vulnerability = _unsafe_format_string_vulnerability(CONSOLE_LOG_FORMAT_STRING_LINES)
+
+    result = list(
+        utils.parse_results({"path": "/code/server.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
