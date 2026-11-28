@@ -71,6 +71,18 @@ _MESSAGE_TELEMETRY_SINK_PATTERN = re.compile(
     re.DOTALL,
 )
 
+# Upstream semgrep JS browser audit rule `wildcard-postmessage-configuration`
+# (id javascript.browser.security.wildcard-postmessage-configuration) flags ANY
+# `$OBJECT.postMessage(..., "*", ...)` regardless of the payload. A constant
+# string-literal message ships in the bundle itself, so broadcasting it to every
+# origin discloses nothing; only a dynamic/variable payload is a real disclosure.
+_WILDCARD_POSTMESSAGE_RULE = "wildcard-postmessage-configuration"
+# Only a complete two-argument call is benign; transferring a MessagePort is not.
+_CONSTANT_POSTMESSAGE_PATTERN = re.compile(
+    r"""\s*(?:[A-Za-z_$][\w$]*\s*\.\s*)+postMessage\s*\(\s*"""
+    r"""(?:"[^"\\]*"|'[^'\\]*')\s*,\s*(?:"\*"|'\*')\s*\)\s*;?\s*"""
+)
+
 _LOGGER_CREDENTIAL_DISCLOSURE_RULE = "python-logger-credential-disclosure"
 # Credential keywords the upstream rule looks for inside the logged format string
 # (rule regex: (?i).*(api.key|secret|credential|token|password).*\%s.*).
@@ -183,6 +195,30 @@ class Vulnerability:
     risk_rating: vulnerability_mixin.RiskRating
     vuln_dna: str
     vulnerability_location: vulnerability_mixin.VulnerabilityLocation | None = None
+
+
+def _matched_source(vulnerability: dict[str, Any]) -> str | None:
+    """Read the single-line sink span; ambiguous or missing bounds stay reportable."""
+    lines = vulnerability.get("extra", {}).get("lines")
+    start = vulnerability.get("start", {})
+    end = vulnerability.get("end", {})
+    if (
+        not isinstance(lines, str)
+        or len(lines.splitlines()) != 1
+        or not isinstance(start.get("line"), int)
+        or start["line"] < 1
+        or start["line"] != end.get("line")
+        or not isinstance(start.get("col"), int)
+        or not isinstance(end.get("col"), int)
+    ):
+        return None
+    source = lines.encode("utf-8")
+    if not 1 <= start["col"] < end["col"] <= len(source) + 1:
+        return None
+    try:
+        return source[start["col"] - 1 : end["col"] - 1].decode("utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
@@ -376,6 +412,29 @@ def is_telemetry_listener_insufficient_postmessage_origin_validation(
     return _MESSAGE_TELEMETRY_SINK_PATTERN.search(lines) is None
 
 
+def is_constant_payload_wildcard_postmessage(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Suppress a wildcard postMessage whose payload is a constant string literal.
+
+    The upstream rule flags any postMessage sent to the `"*"` target origin,
+    regardless of what is sent. A quoted string-literal message (for example the
+    bundled CleverTap handshake ``i.postMessage("ready", "*")``) is static code
+    compiled into the bundle, so sending it to every origin discloses nothing. A
+    dynamic payload (a variable, an expression, ``JSON.stringify(...)`` or an
+    object literal), a transfer list, or ambiguous source bounds stay reported.
+    """
+    if (
+        str(vulnerability.get("check_id", "")).split(".")[-1]
+        != _WILDCARD_POSTMESSAGE_RULE
+    ):
+        return False
+    source = _matched_source(vulnerability)
+    if source is None:
+        return False
+    return _CONSTANT_POSTMESSAGE_PATTERN.fullmatch(source) is not None
+
+
 def _logger_credential_format_string(vulnerability: dict[str, Any]) -> str:
     """Extract the format string logged by a python-logger-credential-disclosure finding.
 
@@ -463,6 +522,8 @@ def parse_results(
         if is_telemetry_listener_insufficient_postmessage_origin_validation(
             vulnerability
         ):
+            continue
+        if is_constant_payload_wildcard_postmessage(vulnerability):
             continue
         if is_embedded_keyword_logger_credential_disclosure(vulnerability):
             continue
