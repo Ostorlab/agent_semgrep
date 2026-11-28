@@ -79,6 +79,15 @@ _LOGGER_CREDENTIAL_FORMAT_STRING_PATTERN = re.compile(
     r"""(['"])([^'"]*%[sd][^'"]*)\1"""
 )
 
+# The upstream unsafe-formatstring taint rule (CWE-134) has two sinks: a browser
+# `console.$LOG(...)` call and a server-side `$UTIL.format(...)` call. Forging a
+# format specifier inside a browser console.* message only alters cosmetic console
+# output — no code execution, data exposure or server-side effect — so the
+# console.* sink is a false positive for client-side JavaScript. The util.format
+# sink stays reported.
+_UNSAFE_FORMAT_STRING_RULE = "unsafe-formatstring"
+_CONSOLE_LOG_CALL_PATTERN = re.compile(r"\bconsole\s*\.\s*[A-Za-z_$][\w$]*\s*\(")
+
 RISK_RATING_MAPPING = {
     "UNKNOWN": vulnerability_mixin.RiskRating.POTENTIALLY,
     "LOW": vulnerability_mixin.RiskRating.LOW,
@@ -426,6 +435,28 @@ def is_embedded_keyword_logger_credential_disclosure(
     )
 
 
+def is_browser_console_log_unsafe_format_string(
+    vulnerability: dict[str, Any],
+) -> bool:
+    """Suppress an unsafe-formatstring finding whose sink is a browser console.* call.
+
+    The upstream rule flags string concatenation handed to ``console.$LOG(...)`` with
+    an extra argument, on the premise that an injected format specifier forges the log
+    message. In client-side JavaScript (for example a bundled Cordova plugin) this only
+    alters cosmetic console output, so the premise does not translate to a security
+    issue. The server-side ``util.format`` sink stays reported.
+    """
+    if (
+        str(vulnerability.get("check_id", "")).split(".")[-1]
+        != _UNSAFE_FORMAT_STRING_RULE
+    ):
+        return False
+    lines = vulnerability.get("extra", {}).get("lines")
+    if lines is None:
+        return False
+    return _CONSOLE_LOG_CALL_PATTERN.search(str(lines)) is not None
+
+
 def parse_results(
     json_output: dict[str, Any],
     package_name: str | None = None,
@@ -465,6 +496,8 @@ def parse_results(
         ):
             continue
         if is_embedded_keyword_logger_credential_disclosure(vulnerability):
+            continue
+        if is_browser_console_log_unsafe_format_string(vulnerability):
             continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))
