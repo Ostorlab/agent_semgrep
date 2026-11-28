@@ -194,6 +194,30 @@ class Vulnerability:
     vulnerability_location: vulnerability_mixin.VulnerabilityLocation | None = None
 
 
+def _matched_source(vulnerability: dict[str, Any]) -> str | None:
+    """Read the single-line sink span; ambiguous or missing bounds stay reportable."""
+    lines = vulnerability.get("extra", {}).get("lines")
+    start = vulnerability.get("start", {})
+    end = vulnerability.get("end", {})
+    if (
+        not isinstance(lines, str)
+        or len(lines.splitlines()) != 1
+        or not isinstance(start.get("line"), int)
+        or start["line"] < 1
+        or start["line"] != end.get("line")
+        or not isinstance(start.get("col"), int)
+        or not isinstance(end.get("col"), int)
+    ):
+        return None
+    source = lines.encode("utf-8")
+    if not 1 <= start["col"] < end["col"] <= len(source) + 1:
+        return None
+    try:
+        return source[start["col"] - 1 : end["col"] - 1].decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
 def construct_technical_detail(vulnerability: dict[str, Any], path: str) -> str:
     """Constructs a technical detail paragraph from a Semgrep vulnerability json output.
 
@@ -451,10 +475,10 @@ def is_browser_console_log_unsafe_format_string(
         != _UNSAFE_FORMAT_STRING_RULE
     ):
         return False
-    lines = vulnerability.get("extra", {}).get("lines")
-    if lines is None:
+    source = _matched_source(vulnerability)
+    if source is None:
         return False
-    return _CONSOLE_LOG_CALL_PATTERN.search(str(lines)) is not None
+    return _CONSOLE_LOG_CALL_PATTERN.match(source.lstrip()) is not None
 
 
 def parse_results(
@@ -486,6 +510,11 @@ def parse_results(
     vulnerabilities = json_output.get("results", [])
     path = json_output.get("path", "")
 
+    is_mobile_asset = any(
+        identifier not in (None, "")
+        for identifier in (package_name, bundle_id, harmony_bundle_name)
+    )
+
     for vulnerability in vulnerabilities:
         if is_scoped_message_handler_insufficient_postmessage_origin_validation(
             vulnerability
@@ -497,7 +526,9 @@ def parse_results(
             continue
         if is_embedded_keyword_logger_credential_disclosure(vulnerability):
             continue
-        if is_browser_console_log_unsafe_format_string(vulnerability):
+        if is_mobile_asset is True and is_browser_console_log_unsafe_format_string(
+            vulnerability
+        ):
             continue
         extra = vulnerability.get("extra", {})
         description = filter_description(extra.get("message", ""))

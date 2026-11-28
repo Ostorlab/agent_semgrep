@@ -937,7 +937,8 @@ def _unsafe_format_string_vulnerability(
     """Build a semgrep finding for the unsafe-formatstring rule."""
     return {
         "check_id": check_id,
-        "start": {"line": 597, "col": 29},
+        "start": {"line": 1, "col": 1},
+        "end": {"line": 1, "col": len(lines.encode("utf-8")) + 1},
         "extra": {
             "message": "Detected string concatenation with a non-literal variable in a "
             "util.format / console.log function. If an attacker injects a format "
@@ -980,7 +981,7 @@ def testParseResults_whenConsoleLogSink_suppressesFinding() -> None:
         ],
     }
 
-    assert list(utils.parse_results(json_output)) == []
+    assert list(utils.parse_results(json_output, package_name="com.example.app")) == []
 
 
 def testIsBrowserConsoleLog_whenUtilFormatSink_returnsFalse() -> None:
@@ -1020,3 +1021,53 @@ def testIsBrowserConsoleLog_whenLinesMissing_returnsFalse() -> None:
     vulnerability = {"check_id": UNSAFE_FORMAT_STRING_CHECK_ID}
 
     assert utils.is_browser_console_log_unsafe_format_string(vulnerability) is False
+
+
+@pytest.mark.parametrize(
+    "prefix", ["console.log('benign');", "/* console.log('benign') */"]
+)
+def testParseResults_whenConsoleCallOutsideUtilFormatMatch_keepsFinding(
+    prefix: str,
+) -> None:
+    """An unrelated console call on a minified line cannot mute util.format."""
+    matched = "util.format(logs, ip)"
+    lines = prefix + matched + ";"
+    vulnerability = _unsafe_format_string_vulnerability(lines)
+    column = len(prefix) + 1
+    vulnerability["start"] = {"line": 1, "col": column}
+    vulnerability["end"] = {"line": 1, "col": column + len(matched)}
+
+    result = list(
+        utils.parse_results(
+            {"path": "/code/server.js", "results": [vulnerability]},
+            package_name="com.example.app",
+        )
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenConsoleMatchHasNoEnd_keepsFinding() -> None:
+    """Missing match bounds cannot prove that the console call is the reported sink."""
+    vulnerability = _unsafe_format_string_vulnerability(CONSOLE_LOG_FORMAT_STRING_LINES)
+    vulnerability.pop("end", None)
+
+    result = list(
+        utils.parse_results(
+            {"path": "/code/app.js", "results": [vulnerability]},
+            package_name="com.example.app",
+        )
+    )
+
+    assert len(result) == 1
+
+
+def testParseResults_whenConsoleSinkHasNoMobileContext_keepsFinding() -> None:
+    """A repository console sink can affect server logs and remains reportable."""
+    vulnerability = _unsafe_format_string_vulnerability(CONSOLE_LOG_FORMAT_STRING_LINES)
+
+    result = list(
+        utils.parse_results({"path": "/code/server.js", "results": [vulnerability]})
+    )
+
+    assert len(result) == 1
